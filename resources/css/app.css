@@ -23,9 +23,98 @@
     display: none !important;
 }
 
-@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
-@source '../../storage/framework/views/*.php';
+.student-panel,
+.section-panel {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: opacity 240ms ease, visibility 240ms ease;
+}
 
-@theme {
-    --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
+.student-panel.is-open,
+.section-panel.is-open {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
+
+.student-panel__backdrop,
+.section-panel__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgb(15 23 42 / 0.32);
+}
+
+.student-panel__dialog,
+.section-panel__dialog {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    max-height: min(92vh, 54rem);
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 28px 80px rgb(15 23 42 / 0.18);
+    transform: translateY(10px) scale(0.985);
+    transition: transform 240ms ease;
+}
+
+.student-panel__dialog {
+    width: min(74rem, 100%);
+    border-radius: 2rem;
+    background: #f4f6f8;
+    padding: 1rem 1rem 1.25rem;
+}
+
+.section-panel__dialog {
+    width: min(32rem, 100%);
+    border-radius: 1.75rem;
+    background: #fff;
+    padding: 1.35rem 1.5rem 1.6rem;
+}
+
+.student-panel.is-open .student-panel__dialog,
+.section-panel.is-open .section-panel__dialog {
+    transform: none;
+}
+
+.student-panel [data-student-panel-body] {
+    min-height: 12rem;
+    overflow: auto;
+}
+
+.student-history {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) transparent;
+}
+
+.student-history::-webkit-scrollbar {
+    width: 8px;
+}
+
+.student-history::-webkit-scrollbar-thumb {
+    background: rgb(203 213 225);
+    border-radius: 999px;
+}
+
+@media (min-width: 640px) {
+    .student-panel__dialog {
+        padding: 1.15rem 1.35rem 1.5rem;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .student-panel,
+    .section-panel,
+    .student-panel__dialog,
+    .section-panel__dialog {
+        transition: none;
+        transform: none;
+    }
 }

@@ -45,6 +45,7 @@ class ScannerController extends Controller
                 'student_number' => $student->student_number,
                 'name' => $student->full_name,
                 'section' => $student->section?->name,
+                'level' => $student->section?->level?->label(),
                 'photo_url' => $student->photo_path ? route('students.photo', $student) : null,
             ] : null,
         ], $result->httpStatus());

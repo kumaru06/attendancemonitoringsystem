@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SchoolLevel;
 use App\Http\Requests\AttendanceFilterRequest;
 use App\Models\Attendance;
 use App\Models\Section;
@@ -18,7 +19,8 @@ class AttendanceController extends Controller
 
         return view('attendances.index', [
             'attendances' => $exportService->filteredQuery($filters)->paginate(20)->withQueryString(),
-            'sections' => Section::query()->orderBy('name')->get(),
+            'sections' => Section::query()->ordered()->get(),
+            'levels' => SchoolLevel::cases(),
             'filters' => $filters,
         ]);
     }

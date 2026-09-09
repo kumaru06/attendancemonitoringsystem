@@ -28,7 +28,7 @@
             <div class="qr">{!! $svg !!}</div>
             <h1>{{ $student->full_name }}</h1>
             <p>{{ $student->student_number }}</p>
-            <p>{{ $student->section?->name }}</p>
+            <p>{{ $student->section?->labeledName() }}</p>
             <div class="actions">
                 <button type="button" onclick="window.print()">Print</button>
                 <a href="{{ route('students.show', $student) }}">Back</a>

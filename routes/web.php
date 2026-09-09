@@ -50,6 +50,6 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/attendances', [AttendanceController::class, 'index'])->name('attendances.index');
         Route::get('/attendances/export', AttendanceExportController::class)->name('attendances.export');
 
-        Route::resource('users', UserController::class)->except(['show', 'destroy']);
+        Route::resource('users', UserController::class)->except(['show']);
     });
 });

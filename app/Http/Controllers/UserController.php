@@ -79,4 +79,18 @@ class UserController extends Controller
 
         return redirect()->route('users.index')->with('success', 'Account updated.');
     }
+
+    public function destroy(User $user): RedirectResponse
+    {
+        $this->authorize('delete', $user);
+
+        $this->auditLog->record(request()->user(), 'user.deleted', $user, [
+            'username' => $user->username,
+            'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
+        ]);
+
+        $user->delete();
+
+        return redirect()->route('users.index')->with('success', 'Account deleted.');
+    }
 }

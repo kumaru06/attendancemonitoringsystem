@@ -36,6 +36,23 @@ class User extends Authenticatable
         return $this->role === UserRole::Scanner;
     }
 
+    public function recorderLabel(): string
+    {
+        return $this->isAdmin() ? 'Admin' : 'Scanner';
+    }
+
+    public function isLastAdmin(): bool
+    {
+        if (! $this->isAdmin()) {
+            return false;
+        }
+
+        return ! static::query()
+            ->where('role', UserRole::Admin)
+            ->whereKeyNot($this->id)
+            ->exists();
+    }
+
     public function hasRole(UserRole|string $role): bool
     {
         $value = $role instanceof UserRole ? $role : UserRole::from($role);

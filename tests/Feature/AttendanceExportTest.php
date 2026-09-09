@@ -62,6 +62,9 @@ class AttendanceExportTest extends TestCase
         $this->assertStringContainsString("'=1+1", $csv);
         $this->assertStringContainsString("'+Danger Student", $csv);
         $this->assertStringContainsString('Grade 11-A', $csv);
+        $this->assertStringContainsString('SHS', $csv);
+        $this->assertStringContainsString('Admin', $csv);
+        $this->assertStringNotContainsString('Registrar', $csv);
         $this->assertStringNotContainsString('2026-20002', $csv);
         $this->assertStringNotContainsString('Grade 12-B', $csv);
     }

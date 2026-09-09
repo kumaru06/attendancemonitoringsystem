@@ -33,6 +33,18 @@ class Student extends Model
         ]))));
     }
 
+    protected function initials(): Attribute
+    {
+        return Attribute::get(function (): string {
+            $letters = array_filter([
+                mb_substr((string) $this->first_name, 0, 1),
+                mb_substr((string) $this->last_name, 0, 1),
+            ]);
+
+            return mb_strtoupper(implode('', $letters));
+        });
+    }
+
     public function section(): BelongsTo
     {
         return $this->belongsTo(Section::class);

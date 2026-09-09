@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SchoolLevel;
 use App\Http\Requests\StoreStudentRequest;
 use App\Http\Requests\UpdateStudentRequest;
 use App\Models\Section;
@@ -24,6 +25,8 @@ class StudentController extends Controller
     {
         $this->authorize('viewAny', Student::class);
 
+        $level = SchoolLevel::tryFrom((string) $request->input('level'));
+
         $students = Student::query()
             ->with(['section', 'currentQrCredential'])
             ->when($request->filled('search'), function ($query) use ($request) {
@@ -35,6 +38,7 @@ class StudentController extends Controller
                         ->orWhere('middle_name', 'like', "%{$search}%");
                 });
             })
+            ->when($level, fn ($query) => $query->whereHas('section', fn ($section) => $section->where('level', $level)))
             ->when($request->filled('section_id'), fn ($query) => $query->where('section_id', $request->integer('section_id')))
             ->when($request->filled('status'), function ($query) use ($request) {
                 $query->where('is_active', $request->input('status') === 'active');
@@ -46,7 +50,8 @@ class StudentController extends Controller
 
         return view('students.index', [
             'students' => $students,
-            'sections' => Section::query()->orderBy('name')->get(),
+            'sections' => Section::query()->ordered()->get(),
+            'levels' => SchoolLevel::cases(),
         ]);
     }
 
@@ -55,7 +60,7 @@ class StudentController extends Controller
         $this->authorize('create', Student::class);
 
         return view('students.create', [
-            'sections' => Section::query()->orderBy('name')->get(),
+            'sections' => Section::query()->ordered()->get(),
         ]);
     }
 
@@ -79,11 +84,21 @@ class StudentController extends Controller
         return redirect()->route('students.show', $student)->with('success', 'Student registered and QR credential issued.');
     }
 
-    public function show(Student $student): View
+    public function show(Request $request, Student $student): View
     {
         $this->authorize('view', $student);
 
         $student->load(['section', 'currentQrCredential']);
+
+        if ($request->boolean('panel')) {
+            $attendances = $student->attendances()
+                ->with('recorder')
+                ->orderByDesc('attendance_date')
+                ->limit(50)
+                ->get();
+
+            return view('students.panel', compact('student', 'attendances'));
+        }
 
         $attendances = $student->attendances()
             ->with('recorder')
@@ -99,7 +114,7 @@ class StudentController extends Controller
 
         return view('students.edit', [
             'student' => $student,
-            'sections' => Section::query()->orderBy('name')->get(),
+            'sections' => Section::query()->ordered()->get(),
         ]);
     }
 

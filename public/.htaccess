@@ -5,6 +5,9 @@
 
     RewriteEngine On
 
+    # Serv00: uncomment the next line if the site is not using PHP 8.3.
+    # AddType application/x-httpd-php83 .php
+
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
     RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]

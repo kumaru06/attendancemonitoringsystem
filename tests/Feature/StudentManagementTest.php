@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Attendance;
 use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
@@ -75,5 +76,78 @@ class StudentManagementTest extends TestCase
             'action' => 'student.deactivated',
             'subject_id' => $student->id,
         ]);
+    }
+
+    public function test_students_directory_opens_records_from_the_list(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = Student::factory()->create();
+
+        $this->actingAs($admin)
+            ->get(route('students.index'))
+            ->assertOk()
+            ->assertSee('data-student-panel', false)
+            ->assertSee('id="student-panel"', false)
+            ->assertSee('Actions')
+            ->assertSee(route('students.show', $student), false)
+            ->assertSee(route('students.edit', $student), false);
+    }
+
+    public function test_student_panel_returns_the_profile_without_the_site_chrome(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = Student::factory()->create([
+            'first_name' => 'Abner',
+            'middle_name' => null,
+            'last_name' => 'Auer',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('students.show', ['student' => $student, 'panel' => 1]))
+            ->assertOk()
+            ->assertSee('Abner Auer')
+            ->assertSee('Attendance history')
+            ->assertDontSee('Sign out')
+            ->assertDontSee('id="app-sidebar"', false);
+    }
+
+    public function test_student_panel_escapes_student_names_in_html(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = Student::factory()->create([
+            'first_name' => '<script>alert(1)</script>',
+            'middle_name' => null,
+            'last_name' => 'Auer',
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('students.show', ['student' => $student, 'panel' => 1]))
+            ->assertOk()
+            ->assertDontSee('<script>alert(1)</script>', false)
+            ->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false);
+    }
+
+    public function test_student_panel_lists_the_fifty_most_recent_attendance_days(): void
+    {
+        $this->travelTo('2026-09-09 08:00:00');
+
+        $admin = User::factory()->admin()->create();
+        $student = Student::factory()->create();
+
+        foreach (range(0, 50) as $daysAgo) {
+            Attendance::factory()->create([
+                'student_id' => $student->id,
+                'recorded_by' => $admin->id,
+                'attendance_date' => now()->subDays($daysAgo)->toDateString(),
+                'time_in' => '07:15:00',
+            ]);
+        }
+
+        $this->actingAs($admin)
+            ->get(route('students.show', ['student' => $student, 'panel' => 1]))
+            ->assertOk()
+            ->assertSee('2026-09-09')
+            ->assertSee(now()->subDays(49)->toDateString())
+            ->assertDontSee(now()->subDays(50)->toDateString());
     }
 }

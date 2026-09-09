@@ -14,17 +14,26 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
-        //
+        $publicHtml = $this->app->basePath('public_html');
+
+        if (is_dir($publicHtml)) {
+            $this->app->usePublicPath($publicHtml);
+        }
     }
 
     public function boot(): void
     {
+        if (str_starts_with((string) config('app.url'), 'https://')) {
+            URL::forceScheme('https');
+        }
+
         Gate::policy(Student::class, StudentPolicy::class);
         Gate::policy(Attendance::class, AttendancePolicy::class);
         Gate::policy(User::class, UserPolicy::class);

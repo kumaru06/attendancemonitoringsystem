@@ -25,9 +25,7 @@
         <label for="section_id" class="mb-1 block text-sm font-medium text-slate-700">Section / course</label>
         <select id="section_id" name="section_id" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
             <option value="">Select a section</option>
-            @foreach ($sections as $section)
-                <option value="{{ $section->id }}" @selected(old('section_id', $student?->section_id) == $section->id)>{{ $section->name }}</option>
-            @endforeach
+            <x-section-options :sections="$sections" :selected="old('section_id', $student?->section_id)" />
         </select>
     </div>
     <div class="sm:col-span-2">

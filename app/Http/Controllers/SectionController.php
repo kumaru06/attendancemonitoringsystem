@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Enums\SchoolLevel;
 use App\Http\Requests\StoreSectionRequest;
 use App\Http\Requests\UpdateSectionRequest;
 use App\Models\Section;
@@ -17,8 +18,20 @@ class SectionController extends Controller
     {
         $this->authorize('viewAny', Section::class);
 
+        $sections = Section::query()->withCount('students')->ordered()->get();
+
+        $grouped = $sections->groupBy(
+            fn (Section $section): string => $section->level?->value ?? '',
+        );
+
+        $sectionsByLevel = collect(SchoolLevel::cases())
+            ->mapWithKeys(fn (SchoolLevel $level) => [
+                $level->value => $grouped->get($level->value, collect()),
+            ]);
+
         return view('sections.index', [
-            'sections' => Section::query()->withCount('students')->orderBy('name')->paginate(20),
+            'sectionsByLevel' => $sectionsByLevel,
+            'levels' => SchoolLevel::cases(),
         ]);
     }
 

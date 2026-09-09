@@ -65,6 +65,8 @@ Do not start `npm run dev` for daily attendance. Use the files produced by `npm 
 
 The primary scanner is this same Windows computer. Use `http://127.0.0.1:8000` or HTTPS. Grant camera permission in the browser. Do not use `http://attendancemonitoringsystem.test` for scanning; Chrome blocks the webcam there.
 
+On Serv00 the scanner uses HTTPS. See [Serv00 free hosting](serv00-deploy.md).
+
 Phone scanning over a LAN IP on plain HTTP usually cannot access the camera. That needs a separate trusted HTTPS setup.
 
 ## Application key

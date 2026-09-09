@@ -16,5 +16,6 @@ After the first install, compiled assets in `public/build` are enough. Do not ru
 See:
 
 - [Local setup](docs/local-setup.md)
+- [Serv00 free hosting](docs/serv00-deploy.md)
 - [Daily operation](docs/daily-operation.md)
 - [Backup and restore](docs/backup-and-restore.md)

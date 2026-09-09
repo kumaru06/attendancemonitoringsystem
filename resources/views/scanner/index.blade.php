@@ -20,9 +20,9 @@
                 <span class="font-medium">http://{{ $cameraHost }}</span> is not treated as secure, so the camera list stays empty.
             </p>
             <p class="mt-2">
-                Open the scanner at
+                On this computer, open
                 <a class="font-semibold text-amber-900 underline" href="http://127.0.0.1:8000/scanner">http://127.0.0.1:8000/scanner</a>
-                (run <code class="rounded bg-white px-1 py-0.5">php artisan serve</code> first), or turn on Laragon Apache SSL and use HTTPS.
+                after <code class="rounded bg-white px-1 py-0.5">php artisan serve</code>. On Serv00, turn on Let's Encrypt and open the HTTPS URL instead.
             </p>
         </div>
     @endunless
@@ -82,7 +82,7 @@
                     @forelse ($recent as $row)
                         <li class="px-5 py-3">
                             <p class="text-sm font-medium text-slate-900">{{ $row->student?->full_name }}</p>
-                            <p class="text-xs text-slate-500">{{ $row->student?->student_number }} · {{ $row->time_in }}</p>
+                            <p class="text-xs text-slate-500">{{ $row->student?->student_number }} · {{ $row->student?->section?->level?->label() }} · {{ $row->time_in }}</p>
                         </li>
                     @empty
                         <li class="px-5 py-8 text-center text-sm text-slate-500">No successful scans yet today.</li>

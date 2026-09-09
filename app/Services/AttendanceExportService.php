@@ -19,6 +19,9 @@ class AttendanceExportService
             ->when($filters['section_id'] ?? null, function (Builder $query, int $sectionId) {
                 $query->whereHas('student', fn (Builder $student) => $student->where('section_id', $sectionId));
             })
+            ->when($filters['level'] ?? null, function (Builder $query, string $level) {
+                $query->whereHas('student.section', fn (Builder $section) => $section->where('level', $level));
+            })
             ->when($filters['search'] ?? null, function (Builder $query, string $search) {
                 $query->whereHas('student', function (Builder $student) use ($search) {
                     $student->where(function (Builder $inner) use ($search) {
@@ -42,6 +45,7 @@ class AttendanceExportService
             fputcsv($handle, [
                 'Student number',
                 'Student name',
+                'Level',
                 'Section/course',
                 'Attendance date',
                 'Time-in',
@@ -55,11 +59,12 @@ class AttendanceExportService
                     fputcsv($handle, [
                         $this->sanitize($attendance->student?->student_number),
                         $this->sanitize($attendance->student?->full_name),
+                        $this->sanitize($attendance->student?->section?->level?->label()),
                         $this->sanitize($attendance->student?->section?->name),
                         $this->sanitize(optional($attendance->attendance_date)->toDateString()),
                         $this->sanitize((string) $attendance->time_in),
                         $this->sanitize($attendance->status),
-                        $this->sanitize($attendance->recorder?->name),
+                        $this->sanitize($attendance->recorder?->recorderLabel()),
                     ]);
                 });
 

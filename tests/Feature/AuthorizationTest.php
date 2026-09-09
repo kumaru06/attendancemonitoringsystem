@@ -24,6 +24,7 @@ class AuthorizationTest extends TestCase
         $this->actingAs($scanner)->get(route('attendances.index'))->assertForbidden();
         $this->actingAs($scanner)->get(route('attendances.export'))->assertForbidden();
         $this->actingAs($scanner)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($scanner)->delete(route('users.destroy', $scanner))->assertForbidden();
     }
 
     public function test_guest_cannot_open_the_scanner(): void

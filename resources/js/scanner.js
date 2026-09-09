@@ -36,7 +36,7 @@ if (root) {
 
         resultName.textContent = student?.name || (code === 'invalid' ? 'Unknown QR' : 'Scan result');
         resultMeta.textContent = student
-            ? [student.student_number, student.section].filter(Boolean).join(' · ')
+            ? [student.student_number, student.level, student.section].filter(Boolean).join(' · ')
             : 'Present a student QR to the camera.';
         resultMessage.textContent = message;
         resultTime.textContent = payload?.time_in ? `Time-in: ${payload.time_in}` : '';

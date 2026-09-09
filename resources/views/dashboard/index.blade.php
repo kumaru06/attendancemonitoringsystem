@@ -15,6 +15,17 @@
         <x-stat-card label="Not yet checked in" :value="$notYetCheckedIn" icon="clock" hint="Active students without a scan today" />
     </div>
 
+    <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        @foreach ($levelStats as $stat)
+            <x-stat-card
+                :label="$stat['level']->label()"
+                :value="$stat['present'] . ' / ' . $stat['total']"
+                icon="clipboard"
+                hint="Present today / active students"
+            />
+        @endforeach
+    </div>
+
     <div class="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         <div class="border-b border-slate-200 px-5 py-4">
             <h2 class="text-sm font-semibold text-slate-900">Recent attendance</h2>
@@ -27,6 +38,7 @@
                     <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
                         <tr>
                             <th class="px-5 py-3 font-medium">Student</th>
+                            <th class="px-5 py-3 font-medium">Level</th>
                             <th class="px-5 py-3 font-medium">Section</th>
                             <th class="px-5 py-3 font-medium">Time-in</th>
                             <th class="px-5 py-3 font-medium">Recorded by</th>
@@ -39,9 +51,10 @@
                                     <div class="font-medium text-slate-900">{{ $row->student?->full_name }}</div>
                                     <div class="text-xs text-slate-500">{{ $row->student?->student_number }}</div>
                                 </td>
+                                <td class="px-5 py-3 text-slate-600">{{ $row->student?->section?->level?->label() }}</td>
                                 <td class="px-5 py-3 text-slate-600">{{ $row->student?->section?->name }}</td>
                                 <td class="px-5 py-3 text-slate-600">{{ $row->time_in }}</td>
-                                <td class="px-5 py-3 text-slate-600">{{ $row->recorder?->name }}</td>
+                                <td class="px-5 py-3 text-slate-600">{{ $row->recorder?->recorderLabel() }}</td>
                             </tr>
                         @endforeach
                     </tbody>
