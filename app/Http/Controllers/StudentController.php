@@ -26,11 +26,11 @@ class StudentController extends Controller
         $this->authorize('viewAny', Student::class);
 
         $level = SchoolLevel::tryFrom((string) $request->input('level'));
+        $search = $request->string('search')->trim()->toString();
 
         $students = Student::query()
-            ->with(['section', 'currentQrCredential'])
-            ->when($request->filled('search'), function ($query) use ($request) {
-                $search = $request->string('search')->toString();
+            ->with(['section'])
+            ->when($search !== '', function ($query) use ($search) {
                 $query->where(function ($inner) use ($search) {
                     $inner->where('student_number', 'like', "%{$search}%")
                         ->orWhere('first_name', 'like', "%{$search}%")
@@ -39,29 +39,40 @@ class StudentController extends Controller
                 });
             })
             ->when($level, fn ($query) => $query->whereHas('section', fn ($section) => $section->where('level', $level)))
-            ->when($request->filled('section_id'), fn ($query) => $query->where('section_id', $request->integer('section_id')))
-            ->when($request->filled('status'), function ($query) use ($request) {
-                $query->where('is_active', $request->input('status') === 'active');
-            })
             ->orderBy('last_name')
             ->orderBy('first_name')
             ->paginate(15)
             ->withQueryString();
 
+        $levelCounts = Student::query()
+            ->join('sections', 'sections.id', '=', 'students.section_id')
+            ->selectRaw('sections.level as level, count(*) as total')
+            ->groupBy('sections.level')
+            ->pluck('total', 'level');
+
+        if ($request->boolean('directory')) {
+            return view('students._directory', [
+                'students' => $students,
+                'selectedLevel' => $level,
+                'search' => $search,
+            ]);
+        }
+
         return view('students.index', [
             'students' => $students,
             'sections' => Section::query()->ordered()->get(),
             'levels' => SchoolLevel::cases(),
+            'levelCounts' => $levelCounts,
+            'selectedLevel' => $level,
+            'search' => $search,
         ]);
     }
 
-    public function create(): View
+    public function create(): RedirectResponse
     {
         $this->authorize('create', Student::class);
 
-        return view('students.create', [
-            'sections' => Section::query()->ordered()->get(),
-        ]);
+        return redirect()->route('students.index', ['add' => 1]);
     }
 
     public function store(StoreStudentRequest $request): RedirectResponse

@@ -9,10 +9,14 @@
     <input id="username" name="username" required value="{{ old('username', $user?->username) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
 </div>
 <div>
+    <label for="school_name" class="mb-1 block text-sm font-medium text-slate-700">School name</label>
+    <input id="school_name" name="school_name" required value="{{ old('school_name', $user?->school?->name) }}" class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+</div>
+<div>
     <label for="role" class="mb-1 block text-sm font-medium text-slate-700">Role</label>
     <select id="role" name="role" required class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500">
-        @foreach (UserRole::cases() as $role)
-            <option value="{{ $role->value }}" @selected(old('role', $user?->role?->value ?? 'scanner') === $role->value)>{{ $role->label() }}</option>
+        @foreach (UserRole::assignableRoles() as $role)
+            <option value="{{ $role->value }}" @selected(old('role', $user?->role?->value ?? UserRole::Admin->value) === $role->value)>{{ $role->label() }}</option>
         @endforeach
     </select>
 </div>

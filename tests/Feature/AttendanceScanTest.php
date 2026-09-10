@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Student;
 use App\Models\User;
 use App\Services\AttendanceService;
 use App\Services\StudentQrService;
@@ -19,7 +18,7 @@ class AttendanceScanTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(7, 15, 0));
 
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($scanner)
@@ -44,7 +43,7 @@ class AttendanceScanTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(7, 10, 0));
 
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($scanner)->postJson(route('scanner.scan'), ['token' => $token])->assertCreated();
@@ -69,7 +68,7 @@ class AttendanceScanTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(16, 0, 0));
 
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($scanner)->postJson(route('scanner.scan'), ['token' => $token])->assertCreated();
@@ -95,7 +94,7 @@ class AttendanceScanTest extends TestCase
     public function test_revoked_qr_returns_422(): void
     {
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
         $oldToken = $this->issueStudentToken($student);
         app(StudentQrService::class)->replace($student);
 
@@ -108,7 +107,7 @@ class AttendanceScanTest extends TestCase
     public function test_inactive_student_returns_403(): void
     {
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->inactive()->create();
+        $student = $this->studentFor($scanner, ['is_active' => false]);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($scanner)
@@ -145,5 +144,21 @@ class AttendanceScanTest extends TestCase
 
         $this->assertSame(now('Asia/Manila')->toDateString(), app(AttendanceService::class)->today());
         $this->assertSame('Asia/Manila', app(AttendanceService::class)->timezone());
+    }
+
+    public function test_scan_from_another_school_returns_invalid_qr(): void
+    {
+        $scanner = User::factory()->scanner()->create();
+        $otherAdmin = User::factory()->admin()->create();
+        $student = $this->studentFor($otherAdmin);
+        $token = $this->issueStudentToken($student);
+
+        $this->actingAs($scanner)
+            ->postJson(route('scanner.scan'), ['token' => $token])
+            ->assertUnprocessable()
+            ->assertJsonPath('code', 'invalid')
+            ->assertJsonPath('message', 'Invalid QR code');
+
+        $this->assertDatabaseCount('attendances', 0);
     }
 }

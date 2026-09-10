@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureUserHasRole;
+use App\Http\Middleware\RedirectInsecureTestHosts;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -15,6 +16,9 @@ $app = Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->web(prepend: [
+            RedirectInsecureTestHosts::class,
+        ]);
 
         $middleware->alias([
             'active' => EnsureAccountIsActive::class,
@@ -25,7 +29,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
         $middleware->redirectUsersTo(function () {
             $user = auth()->user();
 
-            return $user?->isAdmin() ? route('dashboard') : route('scanner.index');
+            return $user ? route($user->homeRoute()) : route('login');
         });
     })
     ->withExceptions(function (Exceptions $exceptions): void {

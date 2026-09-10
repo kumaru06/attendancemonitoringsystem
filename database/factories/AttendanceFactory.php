@@ -18,6 +18,7 @@ class AttendanceFactory extends Factory
 
         return [
             'student_id' => Student::factory(),
+            'school_id' => fn (array $attributes) => Student::withoutGlobalScopes()->find($attributes['student_id'])?->school_id,
             'attendance_date' => $now->toDateString(),
             'time_in' => $now->format('H:i:s'),
             'status' => config('attendance.status_present'),

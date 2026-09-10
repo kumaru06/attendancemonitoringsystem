@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Student;
 use App\Models\User;
 use App\Services\AttendanceService;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -18,7 +17,7 @@ class AttendanceConcurrencyTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(7, 0, 0));
 
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
         $existing = Attendance::factory()->create([
             'student_id' => $student->id,
             'attendance_date' => now('Asia/Manila')->toDateString(),
@@ -39,8 +38,8 @@ class AttendanceConcurrencyTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(7, 30, 0));
 
         $first = User::factory()->scanner()->create();
-        $second = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $second = $this->scannerFor($first);
+        $student = $this->studentFor($first);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($first)->postJson(route('scanner.scan'), ['token' => $token])->assertCreated();

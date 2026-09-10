@@ -18,8 +18,12 @@
             @endif
 
             <h2 class="mt-5 text-[1.35rem] font-semibold tracking-tight text-slate-900">{{ $student->full_name }}</h2>
+            <p class="mt-3 text-[11px] font-medium uppercase tracking-wider text-slate-400">USN/ID Number</p>
             <p class="mt-1 font-mono text-[13px] tracking-wide text-slate-400">{{ $student->student_number }}</p>
             <p class="mt-3 text-sm text-slate-500">{{ $student->section?->labeledName() }}</p>
+            @if ($student->gender)
+                <p class="mt-1 text-sm text-slate-500">{{ $student->gender->label() }}</p>
+            @endif
             <p class="mt-3">
                 <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium {{ $student->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
                     {{ $student->is_active ? 'Active' : 'Inactive' }}

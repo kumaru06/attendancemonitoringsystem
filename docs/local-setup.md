@@ -39,18 +39,10 @@ npm ci
 npm run build
 ```
 
-5. Open `http://attendancemonitoringsystem.test` (Laragon vhost; document root is already `public/`). You can also use `php artisan serve` at `http://localhost:8000`.
+5. Open `https://attendancemonitoringsystem.test` (Laragon vhost with SSL; document root is already `public/`). You can also use `php artisan serve` at `http://localhost:8000`.
 6. Sign in with the administrator you created.
 7. Add a section, register a student, print the QR card, then open Scanner.
-8. For the webcam, use `http://127.0.0.1:8000/scanner` (`php artisan serve`) or HTTPS. Browsers block the camera on `http://attendancemonitoringsystem.test`.
-
-Optional demo records (never run this against real school data):
-
-```powershell
-php artisan db:seed --class=DemoDataSeeder
-```
-
-`DatabaseSeeder` does not load demo data.
+8. For the webcam, stay on `https://attendancemonitoringsystem.test/scanner`. Browsers block the camera on plain `http://` `.test` hosts.
 
 ## Everyday services
 
@@ -63,7 +55,7 @@ Do not start `npm run dev` for daily attendance. Use the files produced by `npm 
 
 ## Webcam notes
 
-The primary scanner is this same Windows computer. Use `http://127.0.0.1:8000` or HTTPS. Grant camera permission in the browser. Do not use `http://attendancemonitoringsystem.test` for scanning; Chrome blocks the webcam there.
+The primary scanner is this same Windows computer. Use `https://attendancemonitoringsystem.test/scanner` or `http://127.0.0.1:8000/scanner`. Grant camera permission in the browser. Do not stay on `http://attendancemonitoringsystem.test` for scanning; Chrome blocks the webcam there.
 
 On Serv00 the scanner uses HTTPS. See [Serv00 free hosting](serv00-deploy.md).
 

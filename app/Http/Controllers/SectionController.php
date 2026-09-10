@@ -32,6 +32,7 @@ class SectionController extends Controller
         return view('sections.index', [
             'sectionsByLevel' => $sectionsByLevel,
             'levels' => SchoolLevel::cases(),
+            'selectedLevel' => SchoolLevel::tryFrom((string) request()->input('level')),
         ]);
     }
 

@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\UserRole;
 use App\Http\Requests\StoreUserRequest;
 use App\Http\Requests\UpdateUserRequest;
+use App\Models\School;
 use App\Models\User;
 use App\Services\AuditLogService;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class UserController extends Controller
@@ -19,7 +21,11 @@ class UserController extends Controller
         $this->authorize('viewAny', User::class);
 
         return view('users.index', [
-            'users' => User::query()->orderBy('name')->paginate(15),
+            'users' => User::query()
+                ->with('school')
+                ->whereIn('role', UserRole::manageableRoles())
+                ->orderBy('name')
+                ->paginate(15),
         ]);
     }
 
@@ -34,13 +40,23 @@ class UserController extends Controller
     {
         $this->authorize('create', User::class);
 
-        $data = $request->validated();
+        $data = $request->safe()->except(['school_name']);
         $data['is_active'] = $request->boolean('is_active', true);
-        $user = User::query()->create($data);
+
+        $user = DB::transaction(function () use ($data, $request): User {
+            $school = School::query()->create([
+                'name' => $request->validated('school_name'),
+            ]);
+
+            $data['school_id'] = $school->id;
+
+            return User::query()->create($data);
+        });
 
         $this->auditLog->record($request->user(), 'user.created', $user, [
             'username' => $user->username,
             'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
+            'school' => $user->school?->name,
         ]);
 
         return redirect()->route('users.index')->with('success', 'Account created.');
@@ -57,7 +73,7 @@ class UserController extends Controller
     {
         $this->authorize('update', $user);
 
-        $data = $request->validated();
+        $data = $request->safe()->except(['school_name']);
         $data['is_active'] = $request->boolean('is_active');
 
         if (empty($data['password'])) {
@@ -66,6 +82,10 @@ class UserController extends Controller
 
         $wasActive = $user->is_active;
         $user->update($data);
+
+        if ($user->school && $request->filled('school_name')) {
+            $user->school->update(['name' => $request->validated('school_name')]);
+        }
 
         $action = 'user.updated';
         if ($wasActive && ! $user->is_active) {
@@ -89,7 +109,12 @@ class UserController extends Controller
             'role' => $user->role instanceof UserRole ? $user->role->value : $user->role,
         ]);
 
+        $school = $user->school;
         $user->delete();
+
+        if ($school && ! $school->users()->exists() && ! $school->hasStudents()) {
+            $school->delete();
+        }
 
         return redirect()->route('users.index')->with('success', 'Account deleted.');
     }

@@ -15,7 +15,7 @@ class AuthorizationTest extends TestCase
     public function test_scanner_staff_are_forbidden_from_admin_pages(): void
     {
         $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($scanner);
 
         $this->actingAs($scanner)->get(route('dashboard'))->assertForbidden();
         $this->actingAs($scanner)->get(route('students.index'))->assertForbidden();
@@ -23,6 +23,7 @@ class AuthorizationTest extends TestCase
         $this->actingAs($scanner)->get(route('sections.index'))->assertForbidden();
         $this->actingAs($scanner)->get(route('attendances.index'))->assertForbidden();
         $this->actingAs($scanner)->get(route('attendances.export'))->assertForbidden();
+        $this->actingAs($scanner)->get(route('attendances.sf2'))->assertForbidden();
         $this->actingAs($scanner)->get(route('users.index'))->assertForbidden();
         $this->actingAs($scanner)->delete(route('users.destroy', $scanner))->assertForbidden();
     }
@@ -36,8 +37,8 @@ class AuthorizationTest extends TestCase
     public function test_policies_allow_scanners_to_scan_but_not_manage_students(): void
     {
         $admin = User::factory()->admin()->create();
-        $scanner = User::factory()->scanner()->create();
-        $student = Student::factory()->create();
+        $scanner = $this->scannerFor($admin);
+        $student = $this->studentFor($admin);
 
         $this->assertTrue($admin->can('viewAny', Student::class));
         $this->assertTrue($admin->can('create', Student::class));
@@ -59,5 +60,73 @@ class AuthorizationTest extends TestCase
         $this->actingAs($admin)->get(route('dashboard'))->assertOk();
         $this->actingAs($admin)->get(route('scanner.index'))->assertOk();
         $this->actingAs($admin)->get(route('students.index'))->assertOk();
+    }
+
+    public function test_administrator_is_forbidden_from_accounts_pages(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $scanner = User::factory()->scanner()->create();
+
+        $this->actingAs($admin)->get(route('users.index'))->assertForbidden();
+        $this->actingAs($admin)->get(route('users.create'))->assertForbidden();
+        $this->actingAs($admin)->delete(route('users.destroy', $scanner))->assertForbidden();
+    }
+
+    public function test_super_administrator_is_forbidden_from_school_pages(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $student = Student::factory()->create();
+
+        $this->actingAs($superAdmin)->get(route('dashboard'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('scanner.index'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('students.index'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('students.show', $student))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('sections.index'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('attendances.index'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('attendances.export'))->assertForbidden();
+        $this->actingAs($superAdmin)->get(route('attendances.sf2'))->assertForbidden();
+    }
+
+    public function test_policies_allow_super_administrators_to_manage_assignable_accounts(): void
+    {
+        $superAdmin = User::factory()->superAdmin()->create();
+        $admin = User::factory()->admin()->create();
+        $otherSuperAdmin = User::factory()->superAdmin()->create();
+
+        $this->assertTrue($superAdmin->can('viewAny', User::class));
+        $this->assertTrue($superAdmin->can('create', User::class));
+        $this->assertTrue($superAdmin->can('update', $admin));
+        $this->assertFalse($superAdmin->can('update', $otherSuperAdmin));
+        $this->assertFalse($superAdmin->can('delete', $otherSuperAdmin));
+        $this->assertFalse($admin->can('viewAny', User::class));
+        $this->assertFalse($admin->can('create', User::class));
+    }
+
+    public function test_administrator_cannot_open_another_school_student_or_section(): void
+    {
+        $adminA = User::factory()->admin()->create();
+        $adminB = User::factory()->admin()->create();
+        $studentB = $this->studentFor($adminB);
+        $sectionB = $this->sectionFor($adminB, ['name' => 'Grade 12-Z']);
+
+        $this->actingAs($adminA)->get(route('students.show', $studentB))->assertNotFound();
+        $this->actingAs($adminA)->get(route('students.edit', $studentB))->assertNotFound();
+        $this->actingAs($adminA)
+            ->put(route('sections.update', $sectionB), [
+                'name' => 'Hijacked',
+                'level' => $sectionB->level->value,
+            ])
+            ->assertNotFound();
+    }
+
+    public function test_policies_deny_cross_school_student_actions(): void
+    {
+        $adminA = User::factory()->admin()->create();
+        $adminB = User::factory()->admin()->create();
+        $studentB = $this->studentFor($adminB);
+
+        $this->assertFalse($adminA->can('view', $studentB));
+        $this->assertFalse($adminA->can('update', $studentB));
+        $this->assertFalse($adminA->can('manageQr', $studentB));
     }
 }

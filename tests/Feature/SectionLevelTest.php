@@ -4,7 +4,6 @@ namespace Tests\Feature;
 
 use App\Enums\SchoolLevel;
 use App\Models\Attendance;
-use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -28,6 +27,25 @@ class SectionLevelTest extends TestCase
         $this->assertDatabaseHas('sections', [
             'name' => 'BSIT 1-A',
             'level' => SchoolLevel::College->value,
+            'school_id' => $admin->school_id,
+        ]);
+    }
+
+    public function test_administrator_can_create_a_kinder_section(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        $this->actingAs($admin)
+            ->post(route('sections.store'), [
+                'name' => 'Kinder 1-A',
+                'level' => SchoolLevel::Kinder->value,
+            ])
+            ->assertRedirect(route('sections.index'));
+
+        $this->assertDatabaseHas('sections', [
+            'name' => 'Kinder 1-A',
+            'level' => SchoolLevel::Kinder->value,
+            'school_id' => $admin->school_id,
         ]);
     }
 
@@ -45,8 +63,8 @@ class SectionLevelTest extends TestCase
     public function test_students_index_filters_by_school_level(): void
     {
         $admin = User::factory()->admin()->create();
-        $college = Section::factory()->college()->create(['name' => 'BSIT 1-A']);
-        $shs = Section::factory()->shs()->create(['name' => 'Grade 11-A']);
+        $college = $this->sectionFor($admin, ['name' => 'BSIT 1-A', 'level' => SchoolLevel::College]);
+        $shs = $this->sectionFor($admin, ['name' => 'Grade 11-A', 'level' => SchoolLevel::Shs]);
         $collegeStudent = Student::factory()->create([
             'first_name' => 'CollegeKid',
             'section_id' => $college->id,
@@ -63,13 +81,38 @@ class SectionLevelTest extends TestCase
             ->assertDontSee($shsStudent->first_name);
     }
 
+    public function test_students_directory_partial_filters_by_school_level(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $college = $this->sectionFor($admin, ['name' => 'BSIT 1-A', 'level' => SchoolLevel::College]);
+        $shs = $this->sectionFor($admin, ['name' => 'Grade 11-A', 'level' => SchoolLevel::Shs]);
+        $collegeStudent = Student::factory()->create([
+            'first_name' => 'CollegeKid',
+            'section_id' => $college->id,
+        ]);
+        $shsStudent = Student::factory()->create([
+            'first_name' => 'ShsKid',
+            'section_id' => $shs->id,
+        ]);
+
+        $this->actingAs($admin)
+            ->get(route('students.index', [
+                'level' => SchoolLevel::College->value,
+                'directory' => 1,
+            ]))
+            ->assertOk()
+            ->assertSee($collegeStudent->first_name)
+            ->assertDontSee($shsStudent->first_name)
+            ->assertDontSee('Sign out');
+    }
+
     public function test_attendance_index_filters_by_school_level(): void
     {
         $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
 
         $admin = User::factory()->admin()->create();
-        $college = Section::factory()->college()->create();
-        $elementary = Section::factory()->elementary()->create();
+        $college = $this->sectionFor($admin, ['level' => SchoolLevel::College]);
+        $elementary = $this->sectionFor($admin, ['level' => SchoolLevel::Elementary]);
         $collegeStudent = Student::factory()->create([
             'first_name' => 'Tertiary',
             'section_id' => $college->id,
@@ -93,16 +136,32 @@ class SectionLevelTest extends TestCase
         $this->actingAs($admin)
             ->get(route('attendances.index', ['level' => SchoolLevel::College->value]))
             ->assertOk()
-            ->assertSee('Tertiary')
+            ->assertSee('Choose a section to open SF2.')
+            ->assertDontSee('Tertiary')
             ->assertDontSee('ElemChild');
+
+        $this->actingAs($admin)
+            ->get(route('attendances.index', [
+                'month' => now('Asia/Manila')->format('Y-m'),
+                'level' => SchoolLevel::College->value,
+                'section_id' => $college->id,
+            ]))
+            ->assertOk()
+            ->assertSee($collegeStudent->sf2Name())
+            ->assertDontSee($elementaryStudent->sf2Name());
     }
 
-    public function test_attendance_index_shows_admin_instead_of_the_recorder_name(): void
+    public function test_attendance_index_shows_the_learner_instead_of_the_admin_recorder(): void
     {
         $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
 
         $admin = User::factory()->admin()->create(['name' => 'School Administrator']);
-        $student = Student::factory()->create();
+        $section = $this->sectionFor($admin);
+        $student = $this->studentFor($admin, [
+            'first_name' => 'Ana',
+            'last_name' => 'Santos',
+            'section_id' => $section->id,
+        ]);
 
         Attendance::factory()->create([
             'student_id' => $student->id,
@@ -111,10 +170,14 @@ class SectionLevelTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('attendances.index'))
+            ->get(route('attendances.index', [
+                'month' => now('Asia/Manila')->format('Y-m'),
+                'section_id' => $section->id,
+            ]))
             ->assertOk()
-            ->assertSee('>Admin</td>', false)
-            ->assertDontSee('>School Administrator</td>', false);
+            ->assertSee($student->sf2Name())
+            ->assertSee('MALE | TOTAL Per Day')
+            ->assertDontSee('Recorded by');
     }
 
     public function test_attendance_index_shows_scanner_instead_of_the_recorder_name(): void
@@ -122,8 +185,13 @@ class SectionLevelTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
 
         $admin = User::factory()->admin()->create();
-        $scanner = User::factory()->scanner()->create(['name' => 'Gate Staff']);
-        $student = Student::factory()->create();
+        $scanner = $this->scannerFor($admin, ['name' => 'Gate Staff']);
+        $section = $this->sectionFor($admin);
+        $student = $this->studentFor($admin, [
+            'first_name' => 'Ana',
+            'last_name' => 'Santos',
+            'section_id' => $section->id,
+        ]);
 
         Attendance::factory()->create([
             'student_id' => $student->id,
@@ -132,10 +200,14 @@ class SectionLevelTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('attendances.index'))
+            ->get(route('attendances.index', [
+                'month' => now('Asia/Manila')->format('Y-m'),
+                'section_id' => $section->id,
+            ]))
             ->assertOk()
-            ->assertSee('>Scanner</td>', false)
-            ->assertDontSee('>Gate Staff</td>', false);
+            ->assertSee($student->sf2Name())
+            ->assertDontSee('Gate Staff')
+            ->assertDontSee('Recorded by');
     }
 
     public function test_dashboard_shows_present_counts_by_school_level(): void
@@ -143,7 +215,7 @@ class SectionLevelTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
 
         $admin = User::factory()->admin()->create();
-        $college = Section::factory()->college()->create();
+        $college = $this->sectionFor($admin, ['level' => SchoolLevel::College]);
         $student = Student::factory()->create(['section_id' => $college->id]);
 
         Attendance::factory()->create([
@@ -162,15 +234,18 @@ class SectionLevelTest extends TestCase
     public function test_sections_index_renders_each_school_level_as_its_own_group(): void
     {
         $admin = User::factory()->admin()->create();
-        Section::factory()->elementary()->create(['name' => 'Grade 1-A']);
-        Section::factory()->jhs()->create(['name' => 'Grade 7-A']);
-        Section::factory()->shs()->create(['name' => 'Grade 11-A']);
-        Section::factory()->college()->create(['name' => 'BSIT 1-A']);
+        $this->sectionFor($admin, ['name' => 'Kinder 1-A', 'level' => SchoolLevel::Kinder]);
+        $this->sectionFor($admin, ['name' => 'Grade 1-A', 'level' => SchoolLevel::Elementary]);
+        $this->sectionFor($admin, ['name' => 'Grade 7-A', 'level' => SchoolLevel::Jhs]);
+        $this->sectionFor($admin, ['name' => 'Grade 11-A', 'level' => SchoolLevel::Shs]);
+        $this->sectionFor($admin, ['name' => 'BSIT 1-A', 'level' => SchoolLevel::College]);
 
         $this->actingAs($admin)
             ->get(route('sections.index'))
             ->assertOk()
             ->assertSeeInOrder([
+                'id="section-level-kinder"',
+                'Kinder 1-A',
                 'id="section-level-elementary"',
                 'Grade 1-A',
                 'id="section-level-jhs"',
@@ -182,6 +257,73 @@ class SectionLevelTest extends TestCase
             ], false)
             ->assertSee('data-section-panel', false)
             ->assertSee('id="section-panel"', false)
+            ->assertSee('data-section-form-panel', false)
+            ->assertSee('id="section-form-panel"', false)
+            ->assertSee('bg-rose-50', false)
+            ->assertSee('bg-sky-50', false)
+            ->assertSee('bg-amber-50', false)
+            ->assertSee('bg-violet-50', false)
+            ->assertSee('bg-emerald-50', false)
+            ->assertSee('section-list', false)
+            ->assertSee('Add section')
             ->assertDontSee('>Update</button>', false);
+    }
+
+    public function test_dashboard_counts_only_the_signed_in_administrator_school(): void
+    {
+        $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
+
+        $adminA = User::factory()->admin()->create();
+        $adminB = User::factory()->admin()->create();
+        $studentA = $this->studentFor($adminA, ['first_name' => 'AlphaKid']);
+        $studentB = $this->studentFor($adminB, ['first_name' => 'BravoKid']);
+
+        Attendance::factory()->create([
+            'student_id' => $studentA->id,
+            'attendance_date' => now('Asia/Manila')->toDateString(),
+            'recorded_by' => $adminA->id,
+        ]);
+        Attendance::factory()->create([
+            'student_id' => $studentB->id,
+            'attendance_date' => now('Asia/Manila')->toDateString(),
+            'recorded_by' => $adminB->id,
+        ]);
+
+        $this->actingAs($adminA)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertSee('AlphaKid')
+            ->assertDontSee('BravoKid')
+            ->assertSee('1 / 1');
+    }
+
+    public function test_attendance_index_hides_another_school(): void
+    {
+        $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
+
+        $adminA = User::factory()->admin()->create();
+        $adminB = User::factory()->admin()->create();
+        $studentA = $this->studentFor($adminA, ['first_name' => 'AlphaPresent']);
+        $studentB = $this->studentFor($adminB, ['first_name' => 'BravoPresent']);
+
+        Attendance::factory()->create([
+            'student_id' => $studentA->id,
+            'attendance_date' => now('Asia/Manila')->toDateString(),
+            'recorded_by' => $adminA->id,
+        ]);
+        Attendance::factory()->create([
+            'student_id' => $studentB->id,
+            'attendance_date' => now('Asia/Manila')->toDateString(),
+            'recorded_by' => $adminB->id,
+        ]);
+
+        $this->actingAs($adminA)
+            ->get(route('attendances.index', [
+                'month' => now('Asia/Manila')->format('Y-m'),
+                'section_id' => $studentA->section_id,
+            ]))
+            ->assertOk()
+            ->assertSee('AlphaPresent')
+            ->assertDontSee('BravoPresent');
     }
 }

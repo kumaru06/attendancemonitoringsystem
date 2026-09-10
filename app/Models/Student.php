@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Enums\StudentGender;
+use App\Models\Concerns\BelongsToSchool;
 use Database\Factories\StudentFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -11,16 +13,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
-#[Fillable(['student_number', 'first_name', 'middle_name', 'last_name', 'section_id', 'photo_path', 'is_active'])]
+#[Fillable(['student_number', 'first_name', 'middle_name', 'last_name', 'gender', 'section_id', 'school_id', 'photo_path', 'is_active'])]
 class Student extends Model
 {
     /** @use HasFactory<StudentFactory> */
-    use HasFactory;
+    use BelongsToSchool, HasFactory;
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
+            'gender' => StudentGender::class,
         ];
     }
 
@@ -43,6 +46,17 @@ class Student extends Model
 
             return mb_strtoupper(implode('', $letters));
         });
+    }
+
+    public function sf2Name(): string
+    {
+        $name = $this->last_name.', '.$this->first_name;
+
+        if (filled($this->middle_name)) {
+            $name .= ', '.$this->middle_name;
+        }
+
+        return $name;
     }
 
     public function section(): BelongsTo

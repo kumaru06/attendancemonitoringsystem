@@ -1,7 +1,11 @@
 @props(['sections', 'selected' => null])
 
 @foreach (\App\Enums\SchoolLevel::cases() as $level)
-    @php $levelSections = $sections->where('level', $level); @endphp
+    @php
+        $levelSections = $sections->filter(
+            fn (\App\Models\Section $section): bool => $section->level === $level,
+        );
+    @endphp
     @continue($levelSections->isEmpty())
     <optgroup label="{{ $level->label() }}">
         @foreach ($levelSections as $section)

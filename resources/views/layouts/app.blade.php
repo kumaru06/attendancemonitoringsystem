@@ -8,18 +8,16 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased">
-    <div class="min-h-screen lg:flex">
-        @include('components.sidebar')
+<body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased {{ ! empty($fillViewport) ? 'lg:h-dvh lg:overflow-hidden' : '' }}">
+    @include('components.sidebar')
 
-        <div class="flex min-w-0 flex-1 flex-col">
-            @include('components.topbar')
+    <div class="flex min-h-screen min-w-0 flex-col lg:pl-72 {{ ! empty($fillViewport) ? 'lg:h-dvh' : '' }}">
+        @include('components.topbar')
 
-            <main class="mx-auto w-full max-w-7xl flex-1 px-4 py-6 sm:px-6 lg:px-8">
-                @include('components.flash-message')
-                @yield('content')
-            </main>
-        </div>
+        <main class="mx-auto w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 {{ ! empty($fillViewport) ? 'flex min-h-0 max-w-[110rem] flex-col py-5 lg:overflow-hidden' : (! empty($wide) ? 'max-w-[110rem]' : 'max-w-7xl') }}">
+            @include('components.flash-message')
+            @yield('content')
+        </main>
     </div>
 
     @stack('scripts')

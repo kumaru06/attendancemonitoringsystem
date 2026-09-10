@@ -23,9 +23,7 @@ class AuthenticatedSessionController extends Controller
 
         $user = $request->user();
 
-        return redirect()->intended(
-            $user?->isAdmin() ? route('dashboard') : route('scanner.index')
-        );
+        return redirect()->intended(route($user->homeRoute()));
     }
 
     public function destroy(Request $request): RedirectResponse

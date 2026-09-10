@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Enums\SchoolLevel;
+use App\Models\School;
 use App\Models\Section;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,7 +17,15 @@ class SectionFactory extends Factory
         return [
             'name' => fake()->unique()->bothify('Grade ##-??'),
             'level' => SchoolLevel::Shs,
+            'school_id' => School::factory(),
         ];
+    }
+
+    public function kinder(): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'level' => SchoolLevel::Kinder,
+        ]);
     }
 
     public function elementary(): static

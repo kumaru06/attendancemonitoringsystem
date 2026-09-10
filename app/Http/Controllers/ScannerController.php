@@ -19,7 +19,7 @@ class ScannerController extends Controller
             ->where('recorded_by', request()->user()->id)
             ->whereDate('attendance_date', $attendanceService->today())
             ->latest('id')
-            ->limit(12)
+            ->limit(40)
             ->get();
 
         return view('scanner.index', [
@@ -44,6 +44,7 @@ class ScannerController extends Controller
                 'id' => $student->id,
                 'student_number' => $student->student_number,
                 'name' => $student->full_name,
+                'initials' => $student->initials,
                 'section' => $student->section?->name,
                 'level' => $student->section?->level?->label(),
                 'photo_url' => $student->photo_path ? route('students.photo', $student) : null,

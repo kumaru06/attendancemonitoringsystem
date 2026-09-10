@@ -19,6 +19,6 @@ class SectionPolicy
 
     public function update(User $user, Section $section): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() && $section->belongsToSchoolOf($user);
     }
 }

@@ -43,7 +43,7 @@ class AttendanceExportService
         return response()->streamDownload(function () use ($filters) {
             $handle = fopen('php://output', 'w');
             fputcsv($handle, [
-                'Student number',
+                'USN/ID Number',
                 'Student name',
                 'Level',
                 'Section/course',

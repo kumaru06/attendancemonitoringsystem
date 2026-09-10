@@ -28,4 +28,4 @@ Restore `storage/app/private/student-photos` and `.env` to the project. The encr
 
 ## After restore
 
-Start MySQL and Apache (or `php artisan serve`). Do not run `migrate:fresh` or demo seeders against restored school records.
+Start MySQL and Apache (or `php artisan serve`). Do not run `migrate:fresh` against restored school records.

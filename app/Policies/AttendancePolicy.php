@@ -14,6 +14,10 @@ class AttendancePolicy
 
     public function view(User $user, Attendance $attendance): bool
     {
+        if (! $attendance->belongsToSchoolOf($user)) {
+            return false;
+        }
+
         if ($user->isAdmin()) {
             return true;
         }

@@ -2,6 +2,8 @@
 
 namespace Database\Factories;
 
+use App\Enums\StudentGender;
+use App\Models\School;
 use App\Models\Section;
 use App\Models\Student;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,7 +20,9 @@ class StudentFactory extends Factory
             'first_name' => fake()->firstName(),
             'middle_name' => fake()->optional(0.6)->firstName(),
             'last_name' => fake()->lastName(),
+            'gender' => fake()->randomElement(StudentGender::cases()),
             'section_id' => Section::factory(),
+            'school_id' => fn (array $attributes) => Section::withoutGlobalScopes()->find($attributes['section_id'])?->school_id,
             'photo_path' => null,
             'is_active' => true,
         ];
@@ -28,6 +32,14 @@ class StudentFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'is_active' => false,
+        ]);
+    }
+
+    public function forSchool(School $school): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'school_id' => $school->id,
+            'section_id' => Section::factory()->state(['school_id' => $school->id]),
         ]);
     }
 }

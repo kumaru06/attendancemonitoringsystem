@@ -131,7 +131,7 @@ php83 artisan view:cache
 
 Skip `key:generate --force` if you pasted a Laragon `APP_KEY`.
 
-Create scanner staff in the admin **Users** page after you can sign in. Do not run `DemoDataSeeder` on real school data.
+Create scanner staff in the admin **Users** page after you can sign in.
 
 ## 6. Upload `public/build` and turn on HTTPS
 

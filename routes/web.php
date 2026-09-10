@@ -6,6 +6,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ScannerController;
 use App\Http\Controllers\SectionController;
+use App\Http\Controllers\Sf2ExportController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentPhotoController;
 use App\Http\Controllers\StudentQrController;
@@ -25,15 +26,17 @@ Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
 
 Route::middleware(['auth', 'active'])->group(function () {
     Route::get('/', function () {
-        return redirect()->route(auth()->user()?->isAdmin() ? 'dashboard' : 'scanner.index');
+        return redirect()->route(auth()->user()->homeRoute());
     })->name('home');
 
-    Route::get('/scanner', [ScannerController::class, 'index'])->name('scanner.index');
-    Route::post('/scanner/scan', [ScannerController::class, 'scan'])
-        ->middleware('throttle:scan')
-        ->name('scanner.scan');
+    Route::middleware('role:admin,scanner')->group(function () {
+        Route::get('/scanner', [ScannerController::class, 'index'])->name('scanner.index');
+        Route::post('/scanner/scan', [ScannerController::class, 'scan'])
+            ->middleware('throttle:scan')
+            ->name('scanner.scan');
 
-    Route::get('/students/{student}/photo', StudentPhotoController::class)->name('students.photo');
+        Route::get('/students/{student}/photo', StudentPhotoController::class)->name('students.photo');
+    });
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
@@ -49,7 +52,10 @@ Route::middleware(['auth', 'active'])->group(function () {
 
         Route::get('/attendances', [AttendanceController::class, 'index'])->name('attendances.index');
         Route::get('/attendances/export', AttendanceExportController::class)->name('attendances.export');
+        Route::get('/attendances/sf2', Sf2ExportController::class)->name('attendances.sf2');
+    });
 
+    Route::middleware('role:superadmin')->group(function () {
         Route::resource('users', UserController::class)->except(['show']);
     });
 });

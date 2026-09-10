@@ -18,7 +18,7 @@ class UpdateSectionRequest extends FormRequest
         $sectionId = $this->route('section')?->id;
 
         return [
-            'name' => ['required', 'string', 'max:100', Rule::unique('sections', 'name')->ignore($sectionId)],
+            'name' => ['required', 'string', 'max:100', Rule::unique('sections', 'name')->where('school_id', $this->user()?->school_id)->ignore($sectionId)],
             'level' => ['required', Rule::enum(SchoolLevel::class)],
         ];
     }

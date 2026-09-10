@@ -14,7 +14,7 @@ class StudentPolicy
 
     public function view(User $user, Student $student): bool
     {
-        return $user->isAdmin() || $user->isScanner();
+        return ($user->isAdmin() || $user->isScanner()) && $student->belongsToSchoolOf($user);
     }
 
     public function create(User $user): bool
@@ -24,16 +24,16 @@ class StudentPolicy
 
     public function update(User $user, Student $student): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() && $student->belongsToSchoolOf($user);
     }
 
     public function manageQr(User $user, Student $student): bool
     {
-        return $user->isAdmin();
+        return $user->isAdmin() && $student->belongsToSchoolOf($user);
     }
 
     public function viewPhoto(User $user, Student $student): bool
     {
-        return $user->isAdmin() || $user->isScanner();
+        return ($user->isAdmin() || $user->isScanner()) && $student->belongsToSchoolOf($user);
     }
 }

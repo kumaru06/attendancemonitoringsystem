@@ -1,20 +1,24 @@
 @php
-    $links = auth()->user()?->isAdmin()
-        ? [
+    $user = auth()->user();
+    $links = match (true) {
+        $user?->isSuperAdmin() => [
+            ['route' => 'users.index', 'label' => 'Accounts', 'icon' => 'cog', 'match' => 'users.*'],
+        ],
+        $user?->isAdmin() => [
             ['route' => 'dashboard', 'label' => 'Dashboard', 'icon' => 'home', 'match' => 'dashboard'],
             ['route' => 'scanner.index', 'label' => 'Scanner', 'icon' => 'camera', 'match' => 'scanner.*'],
             ['route' => 'students.index', 'label' => 'Students', 'icon' => 'users', 'match' => 'students.*'],
             ['route' => 'sections.index', 'label' => 'Sections', 'icon' => 'clipboard', 'match' => 'sections.*'],
             ['route' => 'attendances.index', 'label' => 'Attendance', 'icon' => 'clock', 'match' => 'attendances.*'],
-            ['route' => 'users.index', 'label' => 'Accounts', 'icon' => 'cog', 'match' => 'users.*'],
-        ]
-        : [
+        ],
+        default => [
             ['route' => 'scanner.index', 'label' => 'Scanner', 'icon' => 'camera', 'match' => 'scanner.*'],
-        ];
+        ],
+    };
 @endphp
 
-<aside id="app-sidebar" class="fixed inset-y-0 left-0 z-40 w-72 -translate-x-full border-r border-slate-800 bg-slate-900 text-slate-100 transition-transform lg:static lg:translate-x-0">
-    <div class="flex h-16 items-center gap-3 border-b border-slate-800 px-5">
+<aside id="app-sidebar" class="fixed inset-y-0 left-0 z-40 flex w-72 -translate-x-full flex-col border-r border-slate-800 bg-slate-900 text-slate-100 transition-transform lg:translate-x-0">
+    <div class="flex h-16 shrink-0 items-center gap-3 border-b border-slate-800 px-5">
         <span class="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500 text-white">
             <x-icon name="qr" class="h-5 w-5" />
         </span>
@@ -27,7 +31,7 @@
         </button>
     </div>
 
-    <nav class="space-y-1 p-3" aria-label="Primary">
+    <nav class="min-h-0 flex-1 space-y-1 overflow-y-auto p-3" aria-label="Primary">
         @foreach ($links as $link)
             @php $active = request()->routeIs($link['match']); @endphp
             <a href="{{ route($link['route']) }}"

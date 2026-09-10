@@ -3,7 +3,6 @@
 namespace Tests\Feature;
 
 use App\Models\Attendance;
-use App\Models\Section;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
@@ -18,8 +17,8 @@ class AttendanceExportTest extends TestCase
         $this->travelTo(now('Asia/Manila')->setTime(8, 0, 0));
 
         $admin = User::factory()->admin()->create(['name' => 'Registrar']);
-        $includedSection = Section::factory()->create(['name' => 'Grade 11-A']);
-        $otherSection = Section::factory()->create(['name' => 'Grade 12-B']);
+        $includedSection = $this->sectionFor($admin, ['name' => 'Grade 11-A']);
+        $otherSection = $this->sectionFor($admin, ['name' => 'Grade 12-B']);
 
         $included = Student::factory()->create([
             'student_number' => '=1+1',
@@ -59,6 +58,7 @@ class AttendanceExportTest extends TestCase
 
         $csv = $response->streamedContent();
 
+        $this->assertStringContainsString('USN/ID Number', $csv);
         $this->assertStringContainsString("'=1+1", $csv);
         $this->assertStringContainsString("'+Danger Student", $csv);
         $this->assertStringContainsString('Grade 11-A', $csv);
@@ -69,13 +69,22 @@ class AttendanceExportTest extends TestCase
         $this->assertStringNotContainsString('Grade 12-B', $csv);
     }
 
-    public function test_attendance_index_defaults_to_today(): void
+    public function test_attendance_index_shows_the_monthly_register_for_the_section(): void
     {
         $this->travelTo(now('Asia/Manila')->setTime(9, 0, 0));
 
         $admin = User::factory()->admin()->create();
-        $todayStudent = Student::factory()->create(['first_name' => 'Today']);
-        $yesterdayStudent = Student::factory()->create(['first_name' => 'Yesterday']);
+        $section = $this->sectionFor($admin);
+        $todayStudent = $this->studentFor($admin, [
+            'first_name' => 'Today',
+            'last_name' => 'Present',
+            'section_id' => $section->id,
+        ]);
+        $yesterdayStudent = $this->studentFor($admin, [
+            'first_name' => 'Yesterday',
+            'last_name' => 'Scanned',
+            'section_id' => $section->id,
+        ]);
 
         Attendance::factory()->create([
             'student_id' => $todayStudent->id,
@@ -90,9 +99,12 @@ class AttendanceExportTest extends TestCase
         ]);
 
         $this->actingAs($admin)
-            ->get(route('attendances.index'))
+            ->get(route('attendances.index', [
+                'month' => now('Asia/Manila')->format('Y-m'),
+                'section_id' => $section->id,
+            ]))
             ->assertOk()
-            ->assertSee('Today')
-            ->assertDontSee('Yesterday');
+            ->assertSee('Present, Today')
+            ->assertSee('Scanned, Yesterday');
     }
 }

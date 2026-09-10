@@ -11,7 +11,7 @@ class StoreUserRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->isAdmin() ?? false;
+        return $this->user()?->isSuperAdmin() ?? false;
     }
 
     public function rules(): array
@@ -20,7 +20,8 @@ class StoreUserRequest extends FormRequest
             'name' => ['required', 'string', 'max:150'],
             'username' => ['required', 'string', 'max:50', 'alpha_dash', 'unique:users,username'],
             'password' => ['required', 'confirmed', Password::min(8)],
-            'role' => ['required', Rule::enum(UserRole::class)],
+            'role' => ['required', Rule::enum(UserRole::class)->only(UserRole::assignableRoles())],
+            'school_name' => ['required', 'string', 'max:150'],
             'is_active' => ['sometimes', 'boolean'],
         ];
     }

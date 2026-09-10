@@ -3,8 +3,10 @@
 namespace App\Console\Commands;
 
 use App\Enums\UserRole;
+use App\Models\School;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 
 class CreateAdmin extends Command
 {
@@ -29,6 +31,14 @@ class CreateAdmin extends Command
             return self::FAILURE;
         }
 
+        $schoolName = $this->ask('School name', $name);
+
+        if (! $schoolName) {
+            $this->error('School name is required.');
+
+            return self::FAILURE;
+        }
+
         $password = $this->secret('Password');
         $confirm = $this->secret('Confirm password');
 
@@ -44,15 +54,22 @@ class CreateAdmin extends Command
             return self::FAILURE;
         }
 
-        User::query()->create([
-            'name' => $name,
-            'username' => $username,
-            'password' => $password,
-            'role' => UserRole::Admin,
-            'is_active' => true,
-        ]);
+        DB::transaction(function () use ($name, $username, $password, $schoolName): void {
+            $school = School::query()->create([
+                'name' => $schoolName,
+            ]);
 
-        $this->info("Administrator [{$username}] created.");
+            User::query()->create([
+                'name' => $name,
+                'username' => $username,
+                'password' => $password,
+                'role' => UserRole::Admin,
+                'school_id' => $school->id,
+                'is_active' => true,
+            ]);
+        });
+
+        $this->info("Administrator [{$username}] created for [{$schoolName}].");
 
         return self::SUCCESS;
     }

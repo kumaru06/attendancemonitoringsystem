@@ -46,9 +46,12 @@ class DashboardController extends Controller
      */
     private function levelStats(string $today): Collection
     {
+        $schoolId = auth()->user()?->school_id;
+
         $activeByLevel = Student::query()
             ->where('students.is_active', true)
             ->join('sections', 'sections.id', '=', 'students.section_id')
+            ->when($schoolId, fn ($query) => $query->where('sections.school_id', $schoolId))
             ->groupBy('sections.level')
             ->selectRaw('sections.level as level, COUNT(*) as total')
             ->pluck('total', 'level');
@@ -58,6 +61,10 @@ class DashboardController extends Controller
             ->join('students', 'students.id', '=', 'attendances.student_id')
             ->join('sections', 'sections.id', '=', 'students.section_id')
             ->where('students.is_active', true)
+            ->when($schoolId, function ($query) use ($schoolId) {
+                $query->where('students.school_id', $schoolId)
+                    ->where('sections.school_id', $schoolId);
+            })
             ->groupBy('sections.level')
             ->selectRaw('sections.level as level, COUNT(*) as total')
             ->pluck('total', 'level');

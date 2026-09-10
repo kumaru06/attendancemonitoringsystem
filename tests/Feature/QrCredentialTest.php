@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Student;
 use App\Models\StudentQrCredential;
 use App\Models\User;
 use App\Services\StudentQrService;
@@ -16,7 +15,7 @@ class QrCredentialTest extends TestCase
     public function test_replacing_a_qr_revokes_the_previous_credential(): void
     {
         $admin = User::factory()->admin()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($admin);
         $oldToken = $this->issueStudentToken($student);
         $oldHash = app(StudentQrService::class)->hashToken($oldToken);
 
@@ -35,7 +34,7 @@ class QrCredentialTest extends TestCase
     public function test_qr_lists_do_not_expose_plaintext_tokens(): void
     {
         $admin = User::factory()->admin()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($admin);
         $token = $this->issueStudentToken($student);
 
         $this->actingAs($admin)
@@ -47,7 +46,7 @@ class QrCredentialTest extends TestCase
     public function test_authorized_staff_can_download_a_qr_svg(): void
     {
         $admin = User::factory()->admin()->create();
-        $student = Student::factory()->create();
+        $student = $this->studentFor($admin);
         $this->issueStudentToken($student);
 
         $this->actingAs($admin)

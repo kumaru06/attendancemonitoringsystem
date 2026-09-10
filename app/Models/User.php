@@ -7,10 +7,11 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 
-#[Fillable(['name', 'username', 'password', 'role', 'is_active'])]
+#[Fillable(['name', 'username', 'password', 'role', 'school_id', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
@@ -26,6 +27,11 @@ class User extends Authenticatable
         ];
     }
 
+    public function isSuperAdmin(): bool
+    {
+        return $this->role === UserRole::SuperAdmin;
+    }
+
     public function isAdmin(): bool
     {
         return $this->role === UserRole::Admin;
@@ -36,21 +42,33 @@ class User extends Authenticatable
         return $this->role === UserRole::Scanner;
     }
 
+    public function isManageableAccount(): bool
+    {
+        return $this->isAdmin() || $this->isScanner();
+    }
+
+    public function homeRoute(): string
+    {
+        return match ($this->role) {
+            UserRole::SuperAdmin => 'users.index',
+            UserRole::Admin => 'dashboard',
+            UserRole::Scanner => 'scanner.index',
+        };
+    }
+
     public function recorderLabel(): string
     {
         return $this->isAdmin() ? 'Admin' : 'Scanner';
     }
 
-    public function isLastAdmin(): bool
+    public function school(): BelongsTo
     {
-        if (! $this->isAdmin()) {
-            return false;
-        }
+        return $this->belongsTo(School::class);
+    }
 
-        return ! static::query()
-            ->where('role', UserRole::Admin)
-            ->whereKeyNot($this->id)
-            ->exists();
+    public function schoolHasStudents(): bool
+    {
+        return $this->school?->hasStudents() ?? false;
     }
 
     public function hasRole(UserRole|string $role): bool

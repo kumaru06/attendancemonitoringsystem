@@ -15,7 +15,7 @@
         <x-stat-card label="Not yet checked in" :value="$notYetCheckedIn" icon="clock" hint="Active students without a scan today" />
     </div>
 
-    <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         @foreach ($levelStats as $stat)
             <x-stat-card
                 :label="$stat['level']->label()"

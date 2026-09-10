@@ -16,7 +16,7 @@ class StoreSectionRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:100', 'unique:sections,name'],
+            'name' => ['required', 'string', 'max:100', Rule::unique('sections', 'name')->where('school_id', $this->user()?->school_id)],
             'level' => ['required', Rule::enum(SchoolLevel::class)],
         ];
     }

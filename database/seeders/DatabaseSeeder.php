@@ -8,9 +8,6 @@ class DatabaseSeeder extends Seeder
 {
     /**
      * Seed the application's database.
-     *
-     * Demo records are optional. Run them separately:
-     * php artisan db:seed --class=DemoDataSeeder
      */
     public function run(): void
     {

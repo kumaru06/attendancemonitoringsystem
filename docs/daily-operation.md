@@ -5,7 +5,7 @@
 1. Confirm the Windows clock is correct and set to Philippine time. Attendance dates use server time in `Asia/Manila`.
 2. Start Laragon MySQL and Apache, or run `php artisan serve`.
 3. Sign in as administrator or scanner staff.
-4. Open Scanner on a camera-safe URL: `http://127.0.0.1:8000` (`php artisan serve`) or HTTPS. Chrome blocks the webcam on `http://attendancemonitoringsystem.test`.
+4. Open Scanner on `https://attendancemonitoringsystem.test/scanner`. Chrome blocks the webcam on plain `http://attendancemonitoringsystem.test`.
 5. Choose the webcam, click **Start scanning**, and allow camera access if the browser asks.
 
 Do not run `npm run dev`. Do not run migrations or seeders as part of morning startup.

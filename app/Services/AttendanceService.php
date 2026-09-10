@@ -35,10 +35,14 @@ class AttendanceService
             return AttendanceScanResult::invalid();
         }
 
-        $student = $credential->student;
+        $student = $credential->student()->withoutGlobalScopes()->first();
 
-        if (! $student || ! $student->is_active) {
-            return AttendanceScanResult::inactive($student ?? new Student);
+        if (! $student || ($recorder->school_id && (int) $student->school_id !== (int) $recorder->school_id)) {
+            return AttendanceScanResult::invalid();
+        }
+
+        if (! $student->is_active) {
+            return AttendanceScanResult::inactive($student);
         }
 
         return $this->record($student, $recorder);

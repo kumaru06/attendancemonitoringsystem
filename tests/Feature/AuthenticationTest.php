@@ -15,6 +15,12 @@ class AuthenticationTest extends TestCase
         $this->get(route('home'))->assertRedirect(route('login'));
     }
 
+    public function test_insecure_test_host_is_redirected_to_https(): void
+    {
+        $this->get('http://attendancemonitoringsystem.test/login')
+            ->assertRedirect('https://attendancemonitoringsystem.test/login');
+    }
+
     public function test_administrator_is_redirected_to_the_dashboard(): void
     {
         $admin = User::factory()->admin()->create([
@@ -28,6 +34,19 @@ class AuthenticationTest extends TestCase
         ])->assertRedirect(route('dashboard'));
 
         $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_super_administrator_is_redirected_to_accounts(): void
+    {
+        User::factory()->superAdmin()->create([
+            'username' => 'root',
+            'password' => 'password',
+        ]);
+
+        $this->post(route('login.store'), [
+            'username' => 'root',
+            'password' => 'password',
+        ])->assertRedirect(route('users.index'));
     }
 
     public function test_scanner_staff_is_redirected_to_the_scanner(): void

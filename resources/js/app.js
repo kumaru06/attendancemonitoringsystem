@@ -172,6 +172,180 @@ if (studentPanel) {
     });
 }
 
+const studentFormPanel = document.getElementById('student-form-panel');
+
+if (studentFormPanel) {
+    const studentNumberInput = studentFormPanel.querySelector('#create-student_number');
+
+    const closeStudentFormPanel = () => {
+        studentFormPanel.classList.remove('is-open');
+        studentFormPanel.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden');
+    };
+
+    const openStudentFormPanel = () => {
+        studentFormPanel.classList.add('is-open');
+        studentFormPanel.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+        studentNumberInput?.focus();
+    };
+
+    if (studentFormPanel.classList.contains('is-open')) {
+        document.body.classList.add('overflow-hidden');
+        studentNumberInput?.focus();
+    }
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-student-form-panel]');
+
+        if (! trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        openStudentFormPanel();
+    });
+
+    studentFormPanel.querySelectorAll('[data-student-form-panel-close]').forEach((control) => {
+        control.addEventListener('click', closeStudentFormPanel);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || ! studentFormPanel.classList.contains('is-open')) {
+            return;
+        }
+
+        closeStudentFormPanel();
+    });
+}
+
+const studentDirectoryHost = document.getElementById('student-directory-host');
+
+if (studentDirectoryHost) {
+    const levelNav = document.querySelector('[data-student-levels]');
+    const searchInput = document.getElementById('student-search');
+    let directoryRequest = null;
+    let searchTimer = null;
+
+    const withDirectoryParam = (href) => {
+        const url = new URL(href, window.location.origin);
+        url.searchParams.set('directory', '1');
+
+        return url.toString();
+    };
+
+    const publicDirectoryPath = (href) => {
+        const url = new URL(href, window.location.origin);
+        url.searchParams.delete('directory');
+
+        return `${url.pathname}${url.search}`;
+    };
+
+    const applySearchToHref = (href, { resetPage = false } = {}) => {
+        const url = new URL(href, window.location.origin);
+        const query = searchInput?.value.trim() || '';
+
+        if (query) {
+            url.searchParams.set('search', query);
+        } else {
+            url.searchParams.delete('search');
+        }
+
+        if (resetPage) {
+            url.searchParams.delete('page');
+        }
+
+        return url.toString();
+    };
+
+    const paintLevelButtons = (selectedLevel) => {
+        levelNav?.querySelectorAll('[data-student-level]').forEach((link) => {
+            const isActive = (link.dataset.studentLevel || '') === selectedLevel;
+            link.className = isActive ? link.dataset.activeClass : link.dataset.idleClass;
+            link.setAttribute('aria-current', isActive ? 'page' : 'false');
+        });
+    };
+
+    const loadStudentDirectory = async (href, push = true) => {
+        directoryRequest?.abort();
+        directoryRequest = new AbortController();
+
+        const current = document.getElementById('student-directory');
+        current?.classList.add('pointer-events-none', 'opacity-50');
+
+        try {
+            const response = await fetch(withDirectoryParam(href), {
+                headers: {
+                    Accept: 'text/html',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+                signal: directoryRequest.signal,
+            });
+
+            if (! response.ok) {
+                return;
+            }
+
+            const html = await response.text();
+            const wrap = document.createElement('div');
+            wrap.innerHTML = html.trim();
+            const next = wrap.querySelector('#student-directory') || wrap.firstElementChild;
+
+            if (next && current) {
+                current.replaceWith(next);
+            }
+
+            if (push) {
+                window.history.pushState({ studentDirectory: true }, '', publicDirectoryPath(href));
+            }
+
+            const nextUrl = new URL(href, window.location.origin);
+            paintLevelButtons(nextUrl.searchParams.get('level') || '');
+
+            if (searchInput && document.activeElement !== searchInput) {
+                searchInput.value = nextUrl.searchParams.get('search') || '';
+            }
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                current?.classList.remove('pointer-events-none', 'opacity-50');
+            }
+        }
+    };
+
+    document.addEventListener('click', (event) => {
+        const levelLink = event.target.closest('[data-student-levels] [data-student-level]');
+
+        if (levelLink) {
+            event.preventDefault();
+            loadStudentDirectory(applySearchToHref(levelLink.href, { resetPage: true }));
+            return;
+        }
+
+        const pageLink = event.target.closest('#student-directory [data-student-directory-pager] a[href]');
+
+        if (pageLink) {
+            event.preventDefault();
+            loadStudentDirectory(pageLink.href);
+        }
+    });
+
+    searchInput?.addEventListener('input', () => {
+        window.clearTimeout(searchTimer);
+        searchTimer = window.setTimeout(() => {
+            loadStudentDirectory(applySearchToHref(window.location.href, { resetPage: true }));
+        }, 280);
+    });
+
+    window.addEventListener('popstate', () => {
+        if (! document.getElementById('student-directory-host')) {
+            return;
+        }
+
+        loadStudentDirectory(window.location.href, false);
+    });
+}
+
 const sectionPanel = document.getElementById('section-panel');
 
 if (sectionPanel) {
@@ -240,9 +414,56 @@ if (sectionPanel) {
     });
 }
 
+const sectionFormPanel = document.getElementById('section-form-panel');
+
+if (sectionFormPanel) {
+    const createNameInput = sectionFormPanel.querySelector('#create-section-name');
+
+    const closeSectionFormPanel = () => {
+        sectionFormPanel.classList.remove('is-open');
+        sectionFormPanel.setAttribute('aria-hidden', 'true');
+        document.body.classList.remove('overflow-hidden');
+    };
+
+    const openSectionFormPanel = () => {
+        sectionFormPanel.classList.add('is-open');
+        sectionFormPanel.setAttribute('aria-hidden', 'false');
+        document.body.classList.add('overflow-hidden');
+        createNameInput?.focus();
+    };
+
+    if (sectionFormPanel.classList.contains('is-open')) {
+        document.body.classList.add('overflow-hidden');
+        createNameInput?.focus();
+    }
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target.closest('[data-section-form-panel]');
+
+        if (! trigger) {
+            return;
+        }
+
+        event.preventDefault();
+        openSectionFormPanel();
+    });
+
+    sectionFormPanel.querySelectorAll('[data-section-form-panel-close]').forEach((control) => {
+        control.addEventListener('click', closeSectionFormPanel);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Escape' || ! sectionFormPanel.classList.contains('is-open')) {
+            return;
+        }
+
+        closeSectionFormPanel();
+    });
+}
+
 document.querySelectorAll('[data-photo-input]').forEach((input) => {
     input.addEventListener('change', () => {
-        const preview = document.getElementById('photo-preview');
+        const preview = input.form?.querySelector('[data-photo-preview]') ?? document.getElementById('photo-preview');
         const file = input.files?.[0];
 
         if (! preview || ! file) {

@@ -2,19 +2,90 @@
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
+@source '../../app/Enums/SchoolLevel.php';
 
 @theme {
     --font-sans: 'Segoe UI', ui-sans-serif, system-ui, sans-serif;
 }
 
-.scanner-preview #reader {
+.scanner-toolbar select,
+.scanner-toolbar button,
+.camera-picker {
+    flex: none;
+    max-width: 100%;
+}
+
+.camera-picker-menu {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(71 85 105) transparent;
+}
+
+.camera-picker-menu button[aria-selected='true'] {
+    background: rgb(79 70 229 / 0.28);
+    color: #fff;
+}
+
+.scanner-toolbar > button {
+    width: auto;
+}
+
+.scanner-preview #reader,
+.scanner-preview #reader > div {
     border: none !important;
+    width: 100% !important;
+    height: 100% !important;
 }
 
 .scanner-preview #reader video {
     width: 100% !important;
     height: 100% !important;
     object-fit: cover;
+}
+
+#scanner-app[data-scanning='true'] #scan-live-pill {
+    background: rgb(16 185 129 / 0.16);
+    color: rgb(167 243 208);
+}
+
+#scanner-app[data-scanning='true'] #scan-live-dot {
+    background: rgb(52 211 153);
+    box-shadow: 0 0 0 4px rgb(52 211 153 / 0.22);
+}
+
+#result-card[data-result='recorded'] {
+    box-shadow: 0 0 0 1px rgb(16 185 129 / 0.28), 0 18px 50px -28px rgb(15 23 42 / 0.35);
+}
+
+#result-card[data-result='duplicate'] {
+    box-shadow: 0 0 0 1px rgb(245 158 11 / 0.32), 0 18px 50px -28px rgb(15 23 42 / 0.35);
+}
+
+#result-card[data-result='invalid'],
+#result-card[data-result='inactive'],
+#result-card[data-result='error'] {
+    box-shadow: 0 0 0 1px rgb(244 63 94 / 0.28), 0 18px 50px -28px rgb(15 23 42 / 0.35);
+}
+
+#scanner-app[data-scanning='true'] .scanner-scanline {
+    display: block;
+    animation: scanner-line 2.2s ease-in-out infinite;
+}
+
+@keyframes scanner-line {
+    0% {
+        top: 18%;
+        opacity: 0;
+    }
+    12% {
+        opacity: 0.85;
+    }
+    88% {
+        opacity: 0.85;
+    }
+    100% {
+        top: 78%;
+        opacity: 0;
+    }
 }
 
 .scanner-preview #qr-shaded-region,
@@ -24,7 +95,8 @@
 }
 
 .student-panel,
-.section-panel {
+.section-panel,
+.student-form-panel {
     position: fixed;
     inset: 0;
     z-index: 60;
@@ -39,21 +111,24 @@
 }
 
 .student-panel.is-open,
-.section-panel.is-open {
+.section-panel.is-open,
+.student-form-panel.is-open {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
 }
 
 .student-panel__backdrop,
-.section-panel__backdrop {
+.section-panel__backdrop,
+.student-form-panel__backdrop {
     position: absolute;
     inset: 0;
     background: rgb(15 23 42 / 0.32);
 }
 
 .student-panel__dialog,
-.section-panel__dialog {
+.section-panel__dialog,
+.student-form-panel__dialog {
     position: relative;
     z-index: 1;
     display: flex;
@@ -79,8 +154,17 @@
     padding: 1.35rem 1.5rem 1.6rem;
 }
 
+.student-form-panel__dialog {
+    width: min(42rem, 100%);
+    border-radius: 1.75rem;
+    background: #fff;
+    padding: 1.35rem 1.5rem 1.6rem;
+    overflow: auto;
+}
+
 .student-panel.is-open .student-panel__dialog,
-.section-panel.is-open .section-panel__dialog {
+.section-panel.is-open .section-panel__dialog,
+.student-form-panel.is-open .student-form-panel__dialog {
     transform: none;
 }
 
@@ -89,16 +173,23 @@
     overflow: auto;
 }
 
-.student-history {
+.student-history,
+.section-list,
+.scan-feed {
     scrollbar-width: thin;
     scrollbar-color: rgb(203 213 225) transparent;
 }
 
-.student-history::-webkit-scrollbar {
+.student-history::-webkit-scrollbar,
+.section-list::-webkit-scrollbar,
+.scan-feed::-webkit-scrollbar {
     width: 8px;
+    height: 8px;
 }
 
-.student-history::-webkit-scrollbar-thumb {
+.student-history::-webkit-scrollbar-thumb,
+.section-list::-webkit-scrollbar-thumb,
+.scan-feed::-webkit-scrollbar-thumb {
     background: rgb(203 213 225);
     border-radius: 999px;
 }
@@ -112,9 +203,17 @@
 @media (prefers-reduced-motion: reduce) {
     .student-panel,
     .section-panel,
+    .student-form-panel,
     .student-panel__dialog,
-    .section-panel__dialog {
+    .section-panel__dialog,
+    .student-form-panel__dialog {
         transition: none;
         transform: none;
+    }
+
+    #scanner-app[data-scanning='true'] .scanner-scanline {
+        animation: none;
+        top: 50%;
+        opacity: 0.6;
     }
 }

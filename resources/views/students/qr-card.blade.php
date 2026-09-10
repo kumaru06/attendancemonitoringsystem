@@ -27,6 +27,7 @@
             <p style="font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:#64748b;">Student QR card</p>
             <div class="qr">{!! $svg !!}</div>
             <h1>{{ $student->full_name }}</h1>
+            <p style="margin-top:10px; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#64748b;">USN/ID Number</p>
             <p>{{ $student->student_number }}</p>
             <p>{{ $student->section?->labeledName() }}</p>
             <div class="actions">

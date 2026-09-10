@@ -6,6 +6,9 @@ if (root) {
     const scanUrl = root.dataset.scanUrl;
     const csrf = root.dataset.csrf;
     const cameraSelect = document.getElementById('camera-select');
+    const cameraPickerButton = document.getElementById('camera-picker-button');
+    const cameraPickerLabel = document.getElementById('camera-picker-label');
+    const cameraPickerMenu = document.getElementById('camera-picker-menu');
     const startButton = document.getElementById('start-scan');
     const stopButton = document.getElementById('stop-scan');
     const statusEl = document.getElementById('scan-status');
@@ -15,7 +18,14 @@ if (root) {
     const resultTime = document.getElementById('result-time');
     const resultPhoto = document.getElementById('result-photo');
     const resultFallback = document.getElementById('result-photo-fallback');
+    const resultBadge = document.getElementById('result-badge');
+    const resultCard = document.getElementById('result-card');
+    const resultInitials = document.getElementById('result-initials');
+    const resultPhotoIcon = document.getElementById('result-photo-icon');
+    const liveLabel = document.getElementById('scan-live-label');
     const recentList = document.getElementById('recent-list');
+    const recentCount = document.getElementById('recent-count');
+    const recentLimit = 40;
 
     let scanner = null;
     let running = false;
@@ -26,6 +36,20 @@ if (root) {
     const setStatus = (message) => {
         if (statusEl) {
             statusEl.textContent = message;
+        }
+    };
+
+    const setScanningState = (isScanning) => {
+        root.dataset.scanning = isScanning ? 'true' : 'false';
+
+        if (liveLabel) {
+            liveLabel.textContent = isScanning ? 'Live' : 'Idle';
+        }
+
+        if (startButton) {
+            startButton.disabled = isScanning;
+            startButton.classList.toggle('opacity-60', isScanning);
+            startButton.classList.toggle('cursor-not-allowed', isScanning);
         }
     };
 
@@ -46,6 +70,36 @@ if (root) {
             code === 'recorded' ? 'text-emerald-700' : code === 'duplicate' ? 'text-amber-700' : 'text-rose-700',
         );
 
+        resultCard?.setAttribute('data-result', code);
+
+        if (resultBadge) {
+            const badges = {
+                recorded: ['Present', 'bg-emerald-50 text-emerald-700'],
+                duplicate: ['Already checked in', 'bg-amber-50 text-amber-800'],
+                invalid: ['Invalid QR', 'bg-rose-50 text-rose-700'],
+                inactive: ['Inactive', 'bg-rose-50 text-rose-700'],
+            };
+            const badge = badges[code];
+
+            resultBadge.className = 'rounded-full px-2.5 py-1 text-[11px] font-semibold';
+
+            if (badge) {
+                resultBadge.hidden = false;
+                resultBadge.textContent = badge[0];
+                resultBadge.classList.add(...badge[1].split(' '));
+            } else {
+                resultBadge.hidden = true;
+                resultBadge.textContent = '';
+            }
+        }
+
+        const ring = code === 'recorded' ? 'ring-emerald-100' : code === 'duplicate' ? 'ring-amber-100' : 'ring-slate-100';
+
+        resultPhoto.classList.remove('ring-emerald-100', 'ring-amber-100', 'ring-slate-100', 'ring-rose-100');
+        resultFallback.classList.remove('ring-emerald-100', 'ring-amber-100', 'ring-slate-100', 'ring-rose-100');
+        resultPhoto.classList.add(ring);
+        resultFallback.classList.add(ring);
+
         if (student?.photo_url) {
             resultPhoto.src = student.photo_url;
             resultPhoto.alt = student.name || 'Student photo';
@@ -55,7 +109,60 @@ if (root) {
             resultPhoto.removeAttribute('src');
             resultPhoto.classList.add('hidden');
             resultFallback.classList.remove('hidden');
+
+            const initials = student?.initials || initialsFromName(student?.name);
+
+            if (initials && resultInitials) {
+                resultInitials.textContent = initials;
+                resultInitials.classList.remove('hidden');
+                resultPhotoIcon?.classList.add('hidden');
+            } else {
+                resultInitials?.classList.add('hidden');
+                resultPhotoIcon?.classList.remove('hidden');
+            }
         }
+    };
+
+    const initialsFromName = (name) => {
+        return String(name || '')
+            .split(/\s+/)
+            .filter(Boolean)
+            .slice(0, 2)
+            .map((part) => part.charAt(0))
+            .join('')
+            .toUpperCase();
+    };
+
+    const levelTone = (label) => {
+        if (label === 'Kinder') {
+            return 'bg-rose-50 text-rose-800';
+        }
+
+        if (label === 'Elementary') {
+            return 'bg-sky-50 text-sky-800';
+        }
+
+        if (label === 'JHS') {
+            return 'bg-amber-50 text-amber-800';
+        }
+
+        if (label === 'SHS') {
+            return 'bg-violet-50 text-violet-800';
+        }
+
+        if (label === 'College') {
+            return 'bg-emerald-50 text-emerald-800';
+        }
+
+        return 'bg-slate-100 text-slate-600';
+    };
+
+    const refreshRecentCount = () => {
+        if (! recentCount || ! recentList) {
+            return;
+        }
+
+        recentCount.textContent = String(recentList.querySelectorAll('li:not(.text-center)').length);
     };
 
     const prependRecent = (payload) => {
@@ -67,15 +174,22 @@ if (root) {
         empty?.remove();
 
         const item = document.createElement('li');
-        item.className = 'px-5 py-3';
-        item.innerHTML = `<p class="text-sm font-medium text-slate-900"></p><p class="text-xs text-slate-500"></p>`;
-        item.children[0].textContent = payload.student.name;
-        item.children[1].textContent = `${payload.student.student_number} · ${payload.time_in ?? ''}`;
+        item.className = 'flex items-center gap-3 px-4 py-3';
+        item.innerHTML = `<div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-[11px] font-semibold text-white"></div><div class="min-w-0 flex-1"><p class="truncate text-sm font-medium text-slate-900"></p><p class="truncate text-xs text-slate-500"></p></div><div class="flex shrink-0 flex-col items-end gap-1"><span class="rounded-full px-2 py-0.5 text-[10px] font-semibold"></span><p class="text-xs font-medium tabular-nums text-slate-400"></p></div>`;
+        item.querySelector('div').textContent = payload.student.initials || initialsFromName(payload.student.name) || '—';
+        item.querySelectorAll('p')[0].textContent = payload.student.name;
+        item.querySelectorAll('p')[1].textContent = payload.student.student_number || '';
+        const chip = item.querySelector('span');
+        chip.textContent = payload.student.level || '';
+        chip.className = `rounded-full px-2 py-0.5 text-[10px] font-semibold ${levelTone(payload.student.level)}`;
+        item.querySelectorAll('p')[2].textContent = payload.time_in ?? '';
         recentList.prepend(item);
 
-        while (recentList.children.length > 12) {
+        while (recentList.children.length > recentLimit) {
             recentList.lastElementChild?.remove();
         }
+
+        refreshRecentCount();
     };
 
     const submitToken = async (token) => {
@@ -131,9 +245,75 @@ if (root) {
 
     const selectedCameraId = () => cameraSelect?.value || '';
 
+    const closeCameraPicker = () => {
+        if (! cameraPickerMenu || ! cameraPickerButton) {
+            return;
+        }
+
+        cameraPickerMenu.hidden = true;
+        cameraPickerMenu.classList.add('hidden');
+        cameraPickerButton.setAttribute('aria-expanded', 'false');
+    };
+
+    const openCameraPicker = () => {
+        if (! cameraPickerMenu || ! cameraPickerButton) {
+            return;
+        }
+
+        cameraPickerMenu.hidden = false;
+        cameraPickerMenu.classList.remove('hidden');
+        cameraPickerButton.setAttribute('aria-expanded', 'true');
+    };
+
+    const syncCameraPicker = () => {
+        if (! cameraSelect || ! cameraPickerMenu || ! cameraPickerLabel) {
+            return;
+        }
+
+        const options = Array.from(cameraSelect.options);
+        const current = cameraSelect.value;
+        const currentLabel = options.find((option) => option.value === current)?.textContent
+            || options[0]?.textContent
+            || 'Select a camera';
+
+        cameraPickerLabel.textContent = currentLabel;
+        cameraPickerMenu.innerHTML = '';
+
+        if (! options.length) {
+            const empty = document.createElement('li');
+            empty.className = 'px-3 py-2 text-sm text-slate-400';
+            empty.textContent = 'No camera found';
+            cameraPickerMenu.append(empty);
+            return;
+        }
+
+        options.forEach((option) => {
+            const item = document.createElement('li');
+            const choice = document.createElement('button');
+            choice.type = 'button';
+            choice.role = 'option';
+            choice.setAttribute('aria-selected', option.value === current ? 'true' : 'false');
+            choice.dataset.value = option.value;
+            choice.className = 'flex w-full px-3 py-2 text-left text-sm text-slate-100 hover:bg-white/10';
+            choice.textContent = option.textContent || 'Camera';
+            choice.addEventListener('click', () => {
+                if (cameraSelect.value !== option.value) {
+                    cameraSelect.value = option.value;
+                    cameraSelect.dispatchEvent(new Event('change'));
+                }
+
+                syncCameraPicker();
+                closeCameraPicker();
+            });
+            item.append(choice);
+            cameraPickerMenu.append(item);
+        });
+    };
+
     const stopScanner = async () => {
         if (! scanner) {
             running = false;
+            setScanningState(false);
             setStatus('Camera is stopped.');
             return;
         }
@@ -149,11 +329,16 @@ if (root) {
 
         running = false;
         scanner = null;
+        setScanningState(false);
         setStatus('Camera is stopped.');
     };
 
     const insecureOriginMessage = () => {
         const host = window.location.hostname;
+
+        if (host.endsWith('.test')) {
+            return `Browsers block the webcam on http://${host}. Open https://${host}/scanner instead.`;
+        }
 
         return `Browsers block the webcam on http://${host}. Open http://127.0.0.1:8000/scanner after running php artisan serve, or use HTTPS.`;
     };
@@ -231,7 +416,8 @@ if (root) {
         try {
             await scanner.start(source, cameraConfig, onDecoded, () => {});
             running = true;
-            setStatus('Scanning. Hold a QR steady in the frame.');
+            setScanningState(true);
+            setStatus('Hold a QR code steady in the frame.');
         } catch (firstError) {
             await wait(700);
 
@@ -239,7 +425,8 @@ if (root) {
                 scanner = new Html5Qrcode('reader', { verbose: false });
                 await scanner.start(source, cameraConfig, onDecoded, () => {});
                 running = true;
-                setStatus('Scanning. Hold a QR steady in the frame.');
+                setScanningState(true);
+                setStatus('Hold a QR code steady in the frame.');
             } catch (error) {
                 await stopScanner();
                 setStatus(describeStartError(error));
@@ -277,6 +464,7 @@ if (root) {
                 cameraSelect.value = preferredId;
             }
 
+            syncCameraPicker();
             setStatus('Camera ready. Press start scanning.');
         } catch (error) {
             const name = error?.name || '';
@@ -299,12 +487,37 @@ if (root) {
         stopScanner();
     });
 
+    cameraPickerButton?.addEventListener('click', () => {
+        if (cameraPickerMenu?.hidden) {
+            openCameraPicker();
+            return;
+        }
+
+        closeCameraPicker();
+    });
+
+    document.addEventListener('click', (event) => {
+        if (! event.target.closest('.camera-picker')) {
+            closeCameraPicker();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeCameraPicker();
+        }
+    });
+
     cameraSelect?.addEventListener('change', async () => {
+        syncCameraPicker();
+
         if (running) {
             await stopScanner();
             await startScanner();
         }
     });
+
+    syncCameraPicker();
 
     window.addEventListener('pagehide', () => {
         stopScanner();
