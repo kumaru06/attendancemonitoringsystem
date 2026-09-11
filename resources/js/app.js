@@ -477,166 +477,28 @@ document.querySelectorAll('[data-photo-input]').forEach((input) => {
     });
 });
 
-const clockFormats = {
-    datetime: {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila',
-    },
-    date: {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric',
-        timeZone: 'Asia/Manila',
-    },
-    time: {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Manila',
-    },
-};
+const clock = document.getElementById('ph-clock');
 
-document.querySelectorAll('[data-ph-clock]').forEach((clock) => {
-    if (! clock.dataset.iso) {
-        return;
-    }
-
+if (clock?.dataset.iso) {
     const started = Date.parse(clock.dataset.iso);
     const offset = started - Date.now();
-    const options = clockFormats[clock.dataset.clockFormat] ?? clockFormats.datetime;
 
     const tick = () => {
         const now = new Date(Date.now() + offset);
-        clock.textContent = new Intl.DateTimeFormat('en-PH', options).format(now);
+        clock.textContent = new Intl.DateTimeFormat('en-PH', {
+            weekday: 'long',
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+            timeZone: 'Asia/Manila',
+        }).format(now);
     };
 
     tick();
     window.setInterval(tick, 30000);
-});
-
-const commandPalette = document.getElementById('command-palette');
-const commandInput = document.getElementById('command-palette-input');
-const commandResults = document.getElementById('command-palette-results');
-
-if (commandPalette && commandInput && commandResults) {
-    const searchUrl = commandPalette.getAttribute('data-search-url');
-    let searchTimer = null;
-    let searchRequest = null;
-
-    const escapeHtml = (value) => {
-        const div = document.createElement('div');
-        div.textContent = value ?? '';
-
-        return div.innerHTML;
-    };
-
-    const renderGroup = (title, items) => {
-        if (! items.length) {
-            return '';
-        }
-
-        const rows = items.map((item) => {
-            const hint = item.hint ? `<span class="block truncate text-xs text-slate-400">${escapeHtml(item.hint)}</span>` : '';
-
-            return `<a href="${escapeHtml(item.url)}" class="block px-4 py-2.5 hover:bg-slate-50"><span class="block truncate font-medium text-slate-800">${escapeHtml(item.name ?? item.label)}</span>${hint}</a>`;
-        }).join('');
-
-        return `<p class="px-4 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wide text-slate-400">${escapeHtml(title)}</p>${rows}`;
-    };
-
-    const renderResults = (payload) => {
-        const html = [
-            renderGroup('Pages', payload.jumps ?? []),
-            renderGroup('Students', payload.students ?? []),
-            renderGroup('Sections', payload.sections ?? []),
-        ].join('');
-
-        commandResults.innerHTML = html || '<p class="px-4 py-6 text-center text-slate-400">No matches.</p>';
-    };
-
-    const runSearch = async (query) => {
-        if (! searchUrl) {
-            return;
-        }
-
-        searchRequest?.abort();
-        searchRequest = new AbortController();
-
-        try {
-            const url = new URL(searchUrl, window.location.origin);
-            if (query) {
-                url.searchParams.set('q', query);
-            }
-
-            const response = await fetch(url, {
-                headers: {
-                    Accept: 'application/json',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                signal: searchRequest.signal,
-            });
-
-            if (! response.ok) {
-                throw new Error('Search failed');
-            }
-
-            renderResults(await response.json());
-        } catch (error) {
-            if (error.name === 'AbortError') {
-                return;
-            }
-
-            commandResults.innerHTML = '<p class="px-4 py-6 text-center text-slate-400">Search is unavailable.</p>';
-        }
-    };
-
-    const openPalette = () => {
-        commandPalette.classList.remove('hidden');
-        document.body.classList.add('overflow-hidden');
-        commandInput.value = '';
-        commandResults.innerHTML = '<p class="px-4 py-6 text-center text-slate-400">Type to search students, sections, or pages.</p>';
-        window.setTimeout(() => commandInput.focus(), 0);
-        runSearch('');
-    };
-
-    const closePalette = () => {
-        searchRequest?.abort();
-        commandPalette.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    };
-
-    document.querySelectorAll('[data-search-open]').forEach((button) => {
-        button.addEventListener('click', openPalette);
-    });
-
-    commandPalette.querySelectorAll('[data-search-close]').forEach((button) => {
-        button.addEventListener('click', closePalette);
-    });
-
-    commandInput.addEventListener('input', () => {
-        window.clearTimeout(searchTimer);
-        searchTimer = window.setTimeout(() => {
-            runSearch(commandInput.value.trim());
-        }, 200);
-    });
-
-    document.addEventListener('keydown', (event) => {
-        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
-            event.preventDefault();
-            openPalette();
-        }
-
-        if (event.key === 'Escape' && ! commandPalette.classList.contains('hidden')) {
-            closePalette();
-        }
-    });
 }
 
 document.querySelectorAll('[data-action-menu]').forEach((menu) => {

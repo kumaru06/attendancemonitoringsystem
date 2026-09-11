@@ -10,13 +10,11 @@ use App\Policies\AttendancePolicy;
 use App\Policies\SectionPolicy;
 use App\Policies\StudentPolicy;
 use App\Policies\UserPolicy;
-use App\View\Composers\AppLayoutComposer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
-use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -50,11 +48,5 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute((int) config('attendance.scan_rate_limit_per_minute', 30))
                 ->by((string) ($request->user()?->id ?: $request->ip()));
         });
-
-        RateLimiter::for('search', function (Request $request) {
-            return Limit::perMinute(30)->by((string) ($request->user()?->id ?: $request->ip()));
-        });
-
-        View::composer('layouts.app', AppLayoutComposer::class);
     }
 }

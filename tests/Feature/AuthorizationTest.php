@@ -24,7 +24,6 @@ class AuthorizationTest extends TestCase
         $this->actingAs($scanner)->get(route('attendances.index'))->assertForbidden();
         $this->actingAs($scanner)->get(route('attendances.export'))->assertForbidden();
         $this->actingAs($scanner)->get(route('attendances.sf2'))->assertForbidden();
-        $this->actingAs($scanner)->get(route('settings.edit'))->assertForbidden();
         $this->actingAs($scanner)->get(route('users.index'))->assertForbidden();
         $this->actingAs($scanner)->delete(route('users.destroy', $scanner))->assertForbidden();
         $this->actingAs($scanner)->delete(route('students.destroy', $student))->assertForbidden();
@@ -70,12 +69,9 @@ class AuthorizationTest extends TestCase
     {
         $admin = User::factory()->admin()->create();
 
-        $this->fakeManilaWeather();
-
         $this->actingAs($admin)->get(route('dashboard'))->assertOk();
         $this->actingAs($admin)->get(route('scanner.index'))->assertOk();
         $this->actingAs($admin)->get(route('students.index'))->assertOk();
-        $this->actingAs($admin)->get(route('settings.edit'))->assertOk();
     }
 
     public function test_administrator_is_forbidden_from_accounts_pages(): void
@@ -101,7 +97,6 @@ class AuthorizationTest extends TestCase
         $this->actingAs($superAdmin)->get(route('attendances.index'))->assertForbidden();
         $this->actingAs($superAdmin)->get(route('attendances.export'))->assertForbidden();
         $this->actingAs($superAdmin)->get(route('attendances.sf2'))->assertForbidden();
-        $this->actingAs($superAdmin)->get(route('settings.edit'))->assertForbidden();
     }
 
     public function test_policies_allow_super_administrators_to_manage_assignable_accounts(): void

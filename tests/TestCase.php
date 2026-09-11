@@ -7,20 +7,9 @@ use App\Models\Student;
 use App\Models\User;
 use App\Services\StudentQrService;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
-use Illuminate\Support\Facades\Http;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function fakeManilaWeather(array $current = ['temperature_2m' => 32, 'weather_code' => 1]): void
-    {
-        Http::preventStrayRequests();
-        Http::fake([
-            'api.open-meteo.com/*' => Http::response([
-                'current' => $current,
-            ]),
-        ]);
-    }
-
     protected function issueStudentToken(Student $student): string
     {
         $service = app(StudentQrService::class);

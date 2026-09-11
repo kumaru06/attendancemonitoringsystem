@@ -6,29 +6,20 @@ use App\Enums\SchoolLevel;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Services\AttendanceService;
-use App\Services\WeatherService;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class DashboardController extends Controller
 {
-    public function __invoke(AttendanceService $attendanceService, WeatherService $weather): View
+    public function __invoke(AttendanceService $attendanceService): View
     {
         $today = $attendanceService->today();
-        $now = $attendanceService->now();
-        $yesterday = $now->subDay()->toDateString();
 
         $activeStudents = Student::query()->where('is_active', true);
         $totalActive = (clone $activeStudents)->count();
 
         $presentToday = Attendance::query()
             ->whereDate('attendance_date', $today)
-            ->whereHas('student', fn ($query) => $query->where('is_active', true))
-            ->count();
-
-        $presentYesterday = Attendance::query()
-            ->whereDate('attendance_date', $yesterday)
             ->whereHas('student', fn ($query) => $query->where('is_active', true))
             ->count();
 
@@ -39,24 +30,14 @@ class DashboardController extends Controller
             ->limit(10)
             ->get();
 
-        $user = auth()->user();
-        $bannerPath = public_path('images/dashboard-banner.jpg');
-
         return view('dashboard.index', [
-            'now' => $now,
+            'now' => $attendanceService->now(),
             'timezone' => $attendanceService->timezone(),
             'totalActive' => $totalActive,
             'presentToday' => $presentToday,
-            'presentDelta' => $this->percentChange($presentToday, $presentYesterday),
             'notYetCheckedIn' => max($totalActive - $presentToday, 0),
             'levelStats' => $this->levelStats($today),
             'recent' => $recent,
-            'weather' => $weather->current(),
-            'firstName' => Str::of((string) $user?->name)->trim()->before(' ')->toString(),
-            'schoolName' => $user?->school?->name,
-            'greeting' => $this->greetingForHour((int) $now->format('G')),
-            'gmtLabel' => $this->gmtLabel($now->utcOffset()),
-            'bannerUrl' => is_file($bannerPath) ? asset('images/dashboard-banner.jpg') : null,
         ]);
     }
 
@@ -93,30 +74,5 @@ class DashboardController extends Controller
             'total' => (int) $activeByLevel->get($level->value, 0),
             'present' => (int) $presentByLevel->get($level->value, 0),
         ]);
-    }
-
-    private function percentChange(int $current, int $previous): ?int
-    {
-        if ($previous === 0) {
-            return $current === 0 ? 0 : null;
-        }
-
-        return (int) round((($current - $previous) / $previous) * 100);
-    }
-
-    private function greetingForHour(int $hour): string
-    {
-        return match (true) {
-            $hour < 12 => 'Good morning',
-            $hour < 18 => 'Good afternoon',
-            default => 'Good evening',
-        };
-    }
-
-    private function gmtLabel(int $offsetSeconds): string
-    {
-        $hours = intdiv($offsetSeconds, 3600);
-
-        return 'GMT'.($hours >= 0 ? '+' : '').$hours;
     }
 }

@@ -4,27 +4,19 @@
     $openSectionForm = $errors->hasAny(['name', 'level']);
     $visibleLevels = $selectedLevel ? collect([$selectedLevel]) : collect($levels);
     $hasAnySection = collect($sectionsByLevel)->contains(fn ($group) => $group->isNotEmpty());
-    $totalSections = collect($sectionsByLevel)->sum(fn ($group) => $group->count());
 @endphp
 
 @section('content')
     <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <nav class="flex flex-wrap gap-2" aria-label="School levels">
             <a href="{{ route('sections.index') }}"
-               aria-label="All, {{ $totalSections }} {{ $totalSections === 1 ? 'section' : 'sections' }}"
-               class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium {{ $selectedLevel ? 'bg-white text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:bg-slate-50' : 'bg-slate-900 text-white' }}">
+               class="rounded-full px-3.5 py-1.5 text-sm font-medium {{ $selectedLevel ? 'bg-white text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:bg-slate-50' : 'bg-slate-900 text-white' }}">
                 All
-                <span class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums {{ $selectedLevel ? 'bg-slate-100 text-slate-600' : 'bg-white/15' }}">{{ $totalSections }}</span>
             </a>
             @foreach ($levels as $level)
-                @php
-                    $levelSectionCount = $sectionsByLevel[$level->value]->count();
-                @endphp
                 <a href="{{ route('sections.index', ['level' => $level->value]) }}"
-                   aria-label="{{ $level->label() }}, {{ $levelSectionCount }} {{ $levelSectionCount === 1 ? 'section' : 'sections' }}"
-                   class="inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium {{ $selectedLevel === $level ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:bg-slate-50' }}">
+                   class="rounded-full px-3.5 py-1.5 text-sm font-medium {{ $selectedLevel === $level ? 'bg-slate-900 text-white' : 'bg-white text-slate-600 shadow-[0_8px_24px_rgba(15,23,42,0.06)] hover:bg-slate-50' }}">
                     {{ $level->label() }}
-                    <span class="rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums {{ $selectedLevel === $level ? 'bg-white/15' : 'bg-slate-100 text-slate-600' }}">{{ $levelSectionCount }}</span>
                 </a>
             @endforeach
         </nav>
