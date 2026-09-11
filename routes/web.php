@@ -5,7 +5,9 @@ use App\Http\Controllers\AttendanceExportController;
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ScannerController;
+use App\Http\Controllers\SearchController;
 use App\Http\Controllers\SectionController;
+use App\Http\Controllers\SettingsController;
 use App\Http\Controllers\Sf2ExportController;
 use App\Http\Controllers\StudentController;
 use App\Http\Controllers\StudentFaceController;
@@ -48,6 +50,9 @@ Route::middleware(['auth', 'active'])->group(function () {
 
     Route::middleware('role:admin')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
+        Route::get('/search', SearchController::class)
+            ->middleware('throttle:search')
+            ->name('search');
 
         Route::resource('students', StudentController::class);
         Route::get('/students/{student}/qr', [StudentQrController::class, 'show'])->name('students.qr');
@@ -62,6 +67,9 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::get('/attendances', [AttendanceController::class, 'index'])->name('attendances.index');
         Route::get('/attendances/export', AttendanceExportController::class)->name('attendances.export');
         Route::get('/attendances/sf2', Sf2ExportController::class)->name('attendances.sf2');
+
+        Route::get('/settings', [SettingsController::class, 'edit'])->name('settings.edit');
+        Route::put('/settings', [SettingsController::class, 'update'])->name('settings.update');
     });
 
     Route::middleware('role:superadmin')->group(function () {

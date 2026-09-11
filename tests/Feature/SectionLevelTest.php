@@ -224,11 +224,36 @@ class SectionLevelTest extends TestCase
             'recorded_by' => $admin->id,
         ]);
 
+        $this->fakeManilaWeather();
+
         $this->actingAs($admin)
             ->get(route('dashboard'))
             ->assertOk()
             ->assertSee('College')
             ->assertSee('1 / 1');
+    }
+
+    public function test_sections_index_shows_section_counts_beside_each_level_filter(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->sectionFor($admin, ['name' => 'Kinder 1-A', 'level' => SchoolLevel::Kinder]);
+        $this->sectionFor($admin, ['name' => 'Kinder 1-B', 'level' => SchoolLevel::Kinder]);
+        $this->sectionFor($admin, ['name' => 'Grade 1-A', 'level' => SchoolLevel::Elementary]);
+        $this->sectionFor($admin, ['name' => 'Grade 7-A', 'level' => SchoolLevel::Jhs]);
+        $this->sectionFor($admin, ['name' => 'Grade 11-A', 'level' => SchoolLevel::Shs]);
+        $this->sectionFor($admin, ['name' => 'BSIT 1-A', 'level' => SchoolLevel::College]);
+        $this->sectionFor($admin, ['name' => 'BSIT 1-B', 'level' => SchoolLevel::College]);
+        $this->sectionFor($admin, ['name' => 'BSIT 1-C', 'level' => SchoolLevel::College]);
+
+        $this->actingAs($admin)
+            ->get(route('sections.index'))
+            ->assertOk()
+            ->assertSee('aria-label="All, 8 sections"', false)
+            ->assertSee('aria-label="Kinder, 2 sections"', false)
+            ->assertSee('aria-label="Elementary, 1 section"', false)
+            ->assertSee('aria-label="JHS, 1 section"', false)
+            ->assertSee('aria-label="SHS, 1 section"', false)
+            ->assertSee('aria-label="College, 3 sections"', false);
     }
 
     public function test_sections_index_renders_each_school_level_as_its_own_group(): void
@@ -288,6 +313,8 @@ class SectionLevelTest extends TestCase
             'attendance_date' => now('Asia/Manila')->toDateString(),
             'recorded_by' => $adminB->id,
         ]);
+
+        $this->fakeManilaWeather();
 
         $this->actingAs($adminA)
             ->get(route('dashboard'))

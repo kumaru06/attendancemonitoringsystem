@@ -87,6 +87,46 @@ enum SchoolLevel: string
         };
     }
 
+    public function dashboardIcon(): string
+    {
+        return match ($this) {
+            self::Kinder => 'users',
+            self::Elementary => 'book',
+            self::Jhs => 'academic',
+            self::Shs => 'academic',
+            self::College => 'building',
+        };
+    }
+
+    /**
+     * @return array{wrap: string, icon: string}
+     */
+    public function dashboardCardTone(): array
+    {
+        return match ($this) {
+            self::Kinder => [
+                'wrap' => 'bg-sky-50 text-sky-900',
+                'icon' => 'bg-sky-500 text-white',
+            ],
+            self::Elementary => [
+                'wrap' => 'bg-emerald-50 text-emerald-900',
+                'icon' => 'bg-emerald-500 text-white',
+            ],
+            self::Jhs => [
+                'wrap' => 'bg-amber-50 text-amber-950',
+                'icon' => 'bg-amber-500 text-white',
+            ],
+            self::Shs => [
+                'wrap' => 'bg-violet-50 text-violet-900',
+                'icon' => 'bg-violet-500 text-white',
+            ],
+            self::College => [
+                'wrap' => 'bg-indigo-50 text-indigo-900',
+                'icon' => 'bg-indigo-500 text-white',
+            ],
+        };
+    }
+
     /**
      * @return array{active: string, idle: string}
      */

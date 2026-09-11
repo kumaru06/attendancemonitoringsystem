@@ -29,4 +29,10 @@ return [
     'face_match_threshold' => 0.42,
 
     'face_ambiguity_margin' => 0.08,
+
+    'weather' => [
+        'latitude' => 14.5995,
+        'longitude' => 120.9842,
+        'cache_seconds' => 1800,
+    ],
 ];

@@ -8,7 +8,7 @@
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @stack('head')
 </head>
-<body class="min-h-screen bg-slate-100 font-sans text-slate-800 antialiased {{ ! empty($fillViewport) ? 'lg:h-dvh lg:overflow-hidden' : '' }}">
+<body class="min-h-screen bg-[#F4F7FB] font-sans text-slate-800 antialiased {{ ! empty($fillViewport) ? 'lg:h-dvh lg:overflow-hidden' : '' }}">
     @include('components.sidebar')
 
     <div class="flex min-h-screen min-w-0 flex-col lg:pl-72 {{ ! empty($fillViewport) ? 'lg:h-dvh' : '' }}">
