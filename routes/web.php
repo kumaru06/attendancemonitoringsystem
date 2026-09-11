@@ -8,6 +8,7 @@ use App\Http\Controllers\ScannerController;
 use App\Http\Controllers\SectionController;
 use App\Http\Controllers\Sf2ExportController;
 use App\Http\Controllers\StudentController;
+use App\Http\Controllers\StudentFaceController;
 use App\Http\Controllers\StudentPhotoController;
 use App\Http\Controllers\StudentQrController;
 use App\Http\Controllers\UserController;
@@ -34,6 +35,13 @@ Route::middleware(['auth', 'active'])->group(function () {
         Route::post('/scanner/scan', [ScannerController::class, 'scan'])
             ->middleware('throttle:scan')
             ->name('scanner.scan');
+        Route::get('/scanner/faces', [ScannerController::class, 'faces'])->name('scanner.faces');
+        Route::post('/scanner/faces', [ScannerController::class, 'enrollFace'])
+            ->middleware('throttle:scan')
+            ->name('scanner.faces.enroll');
+        Route::post('/scanner/face', [ScannerController::class, 'matchFace'])
+            ->middleware('throttle:scan')
+            ->name('scanner.face');
 
         Route::get('/students/{student}/photo', StudentPhotoController::class)->name('students.photo');
     });
@@ -41,10 +49,11 @@ Route::middleware(['auth', 'active'])->group(function () {
     Route::middleware('role:admin')->group(function () {
         Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
-        Route::resource('students', StudentController::class)->except(['destroy']);
+        Route::resource('students', StudentController::class);
         Route::get('/students/{student}/qr', [StudentQrController::class, 'show'])->name('students.qr');
         Route::get('/students/{student}/qr/download', [StudentQrController::class, 'download'])->name('students.qr.download');
         Route::post('/students/{student}/qr/replace', [StudentQrController::class, 'replace'])->name('students.qr.replace');
+        Route::post('/students/{student}/face/reset', [StudentFaceController::class, 'reset'])->name('students.face.reset');
 
         Route::get('/sections', [SectionController::class, 'index'])->name('sections.index');
         Route::post('/sections', [SectionController::class, 'store'])->name('sections.store');

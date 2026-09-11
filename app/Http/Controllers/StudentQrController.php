@@ -61,6 +61,6 @@ class StudentQrController extends Controller
             'student_number' => $student->student_number,
         ]);
 
-        return redirect()->route('students.show', $student)->with('success', 'Previous QR revoked. A new credential was issued.');
+        return back()->with('success', 'Previous QR revoked. A new credential was issued.');
     }
 }

@@ -36,7 +36,12 @@
 
         <div class="grid min-h-0 flex-1 gap-4 lg:grid-cols-[minmax(0,1.55fr)_24.5rem] lg:grid-rows-1" id="scanner-app"
              data-scan-url="{{ route('scanner.scan') }}"
+             data-face-url="{{ route('scanner.face') }}"
+             data-faces-url="{{ route('scanner.faces') }}"
+             data-enroll-url="{{ route('scanner.faces.enroll') }}"
+             data-models-url="{{ asset('models/face-api') }}"
              data-csrf="{{ csrf_token() }}"
+             data-mode="qr"
              data-scanning="false">
             <section class="scanner-stage flex min-h-[22rem] flex-col overflow-hidden rounded-[2rem] bg-slate-950 text-white shadow-[0_32px_80px_-36px_rgb(15_23_42_/_0.75)] ring-1 ring-white/10 lg:min-h-0">
                 <div class="flex shrink-0 items-start justify-between gap-4 px-5 py-4 sm:px-6">
@@ -54,6 +59,11 @@
                 </div>
 
                 <div class="scanner-toolbar flex shrink-0 flex-wrap items-center gap-2 px-5 pb-4 sm:px-6">
+                    <div class="inline-flex rounded-xl bg-white/10 p-1 ring-1 ring-white/10" role="tablist" aria-label="Scanner mode">
+                        <button type="button" data-scanner-mode="qr" class="scanner-mode-button rounded-lg px-3 py-1.5 text-xs font-semibold text-white" aria-pressed="true">QR</button>
+                        <button type="button" data-scanner-mode="face" class="scanner-mode-button rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-300" aria-pressed="false">Face</button>
+                        <button type="button" data-scanner-mode="enroll" class="scanner-mode-button rounded-lg px-3 py-1.5 text-xs font-semibold text-slate-300" aria-pressed="false">Enroll</button>
+                    </div>
                     <div class="camera-picker relative w-72 max-w-full shrink-0">
                         <label class="sr-only" for="camera-select">Camera</label>
                         <select id="camera-select" class="sr-only" tabindex="-1" aria-hidden="true">
@@ -78,6 +88,7 @@
                 <div class="flex min-h-0 flex-1 px-5 pb-5 sm:px-6">
                     <div class="scanner-preview relative min-h-[16rem] w-full flex-1 overflow-hidden rounded-[1.5rem] bg-black [container-type:size] ring-1 ring-white/10">
                         <div id="reader" class="absolute inset-0 h-full w-full"></div>
+                        <video id="face-video" class="absolute inset-0 h-full w-full object-cover" playsinline muted></video>
                         <div class="pointer-events-none absolute inset-0 z-10 bg-[radial-gradient(circle_at_center,transparent_42%,rgb(2_6_23_/_0.45)_100%)]"></div>
                         <div class="scanner-scanline pointer-events-none absolute inset-x-16 top-[18%] z-10 hidden h-px bg-gradient-to-r from-transparent via-indigo-300 to-transparent opacity-80"></div>
                         <div class="pointer-events-none absolute inset-0 z-10 flex items-center justify-center" aria-hidden="true">
@@ -88,11 +99,33 @@
                                 <span class="absolute bottom-0 right-0 h-9 w-9 rounded-br-xl border-b-[3px] border-r-[3px] border-white/90"></span>
                             </div>
                         </div>
+                        <div id="face-guide" class="pointer-events-none absolute inset-x-0 bottom-4 z-20 hidden px-5">
+                            <div class="mx-auto flex max-w-md items-center gap-3 rounded-2xl bg-slate-950/80 px-4 py-3 text-white ring-1 ring-white/15 backdrop-blur">
+                                <span id="face-guide-arrow" class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-indigo-500 text-2xl font-semibold">←</span>
+                                <div class="min-w-0">
+                                    <p id="face-guide-label" class="text-sm font-semibold">Look left</p>
+                                    <p id="face-guide-step" class="text-xs text-slate-300">1/5 · 0/2</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
             <aside class="flex min-h-0 flex-col gap-4 lg:h-full">
+                <div id="enroll-panel" class="hidden shrink-0 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_50px_-28px_rgb(15_23_42_/_0.35)]">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">Register a face</p>
+                    <label for="enroll-search" class="mt-3 mb-1 block text-xs font-medium text-slate-500">Student name or USN</label>
+                    <input id="enroll-search" type="search" autocomplete="off" placeholder="Search, or start the camera to scan a QR"
+                           class="w-full rounded-xl bg-slate-50 px-3 py-2.5 text-sm text-slate-800 outline-none focus:bg-white focus:shadow-sm">
+                    <ul id="enroll-results" class="mt-2 hidden max-h-48 overflow-y-auto rounded-xl border border-slate-100 bg-white"></ul>
+                    <div id="enroll-selected" class="mt-3 hidden rounded-2xl bg-slate-50 px-3 py-3">
+                        <p class="text-xs font-medium text-slate-500">Selected student</p>
+                        <p id="enroll-selected-name" class="mt-0.5 text-sm font-semibold text-slate-900"></p>
+                        <p id="enroll-selected-meta" class="text-xs text-slate-500"></p>
+                        <button id="enroll-clear" type="button" class="mt-2 text-xs font-semibold text-indigo-600 hover:text-indigo-500">Choose another student</button>
+                    </div>
+                </div>
                 <div id="result-card" class="shrink-0 overflow-hidden rounded-[2rem] border border-slate-200/80 bg-white p-5 shadow-[0_18px_50px_-28px_rgb(15_23_42_/_0.35)]" data-result="idle">
                     <div class="flex items-center gap-4">
                         <div class="relative shrink-0">

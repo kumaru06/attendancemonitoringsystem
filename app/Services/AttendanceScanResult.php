@@ -39,6 +39,11 @@ class AttendanceScanResult
         return new self('invalid', 'Invalid QR code');
     }
 
+    public static function unrecognized(): self
+    {
+        return new self('unrecognized', 'Face not recognized');
+    }
+
     public static function inactive(Student $student): self
     {
         return new self('inactive', 'Student account is inactive', $student);
@@ -55,6 +60,7 @@ class AttendanceScanResult
             'recorded' => 201,
             'duplicate' => 200,
             'inactive' => 403,
+            'unrecognized' => 422,
             default => 422,
         };
     }

@@ -23,4 +23,10 @@ return [
     'scan_rate_limit_per_minute' => 30,
 
     'login_rate_limit_per_minute' => 5,
+
+    'face_descriptor_length' => 128,
+
+    'face_match_threshold' => 0.42,
+
+    'face_ambiguity_margin' => 0.08,
 ];

@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Enums\AttendanceMethod;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\User;
@@ -10,7 +11,10 @@ use Illuminate\Database\UniqueConstraintViolationException;
 
 class AttendanceService
 {
-    public function __construct(private readonly StudentQrService $qrService) {}
+    public function __construct(
+        private readonly StudentQrService $qrService,
+        private readonly FaceRecognitionService $faceRecognition,
+    ) {}
 
     public function now(): CarbonImmutable
     {
@@ -45,10 +49,34 @@ class AttendanceService
             return AttendanceScanResult::inactive($student);
         }
 
-        return $this->record($student, $recorder);
+        return $this->record($student, $recorder, AttendanceMethod::Qr);
     }
 
-    public function record(Student $student, User $recorder): AttendanceScanResult
+    /**
+     * @param  list<mixed>  $descriptor
+     */
+    public function recordFromFace(array $descriptor, User $recorder): AttendanceScanResult
+    {
+        $normalized = $this->faceRecognition->normalize($descriptor);
+
+        if ($normalized === null) {
+            return AttendanceScanResult::unrecognized();
+        }
+
+        $student = $this->faceRecognition->match($normalized, $recorder->school_id);
+
+        if (! $student || ($recorder->school_id && (int) $student->school_id !== (int) $recorder->school_id)) {
+            return AttendanceScanResult::unrecognized();
+        }
+
+        if (! $student->is_active) {
+            return AttendanceScanResult::inactive($student);
+        }
+
+        return $this->record($student, $recorder, AttendanceMethod::Face);
+    }
+
+    public function record(Student $student, User $recorder, AttendanceMethod $method = AttendanceMethod::Qr): AttendanceScanResult
     {
         $now = $this->now();
         $date = $now->toDateString();
@@ -68,6 +96,7 @@ class AttendanceService
                 'attendance_date' => $date,
                 'time_in' => $now->format('H:i:s'),
                 'status' => config('attendance.status_present'),
+                'method' => $method,
                 'recorded_by' => $recorder->id,
             ]);
         } catch (UniqueConstraintViolationException) {

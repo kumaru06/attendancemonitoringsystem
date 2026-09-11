@@ -7,6 +7,7 @@ use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\User;
 use Illuminate\Foundation\Testing\LazilyRefreshDatabase;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class StudentManagementTest extends TestCase
@@ -110,12 +111,17 @@ class StudentManagementTest extends TestCase
             ->get(route('students.index'))
             ->assertOk()
             ->assertSee('data-student-panel', false)
+            ->assertSee('>View</a>', false)
             ->assertSee('id="student-panel"', false)
             ->assertSee('data-student-form-panel', false)
             ->assertSee('id="student-form-panel"', false)
             ->assertSee('Actions')
+            ->assertSee('Face')
+            ->assertSee('Not enrolled')
             ->assertSee(route('students.show', $student), false)
             ->assertSee(route('students.edit', $student), false)
+            ->assertSee(route('students.destroy', $student), false)
+            ->assertSee('Delete student')
             ->assertDontSee('Apply filters')
             ->assertSee('id="student-search"', false);
     }
@@ -179,6 +185,9 @@ class StudentManagementTest extends TestCase
             ->assertOk()
             ->assertSee('Abner Auer')
             ->assertSee('Attendance history')
+            ->assertSee('No face enrolled')
+            ->assertSee('Delete student')
+            ->assertDontSee('Reset face recognition')
             ->assertDontSee('Sign out')
             ->assertDontSee('id="app-sidebar"', false);
     }
@@ -275,5 +284,50 @@ class StudentManagementTest extends TestCase
             ->assertSee('id="student-form-panel"', false)
             ->assertSee('student-form-panel is-open', false)
             ->assertSee('Register student');
+    }
+
+    public function test_administrator_can_delete_a_student_and_related_records(): void
+    {
+        Storage::fake('local');
+
+        $admin = User::factory()->admin()->create();
+        $photoPath = 'student-photos/juan.jpg';
+        Storage::disk('local')->put($photoPath, 'photo');
+        $student = $this->studentFor($admin, ['photo_path' => $photoPath]);
+        $this->issueStudentToken($student);
+        Attendance::factory()->create([
+            'student_id' => $student->id,
+            'recorded_by' => $admin->id,
+            'school_id' => $admin->school_id,
+        ]);
+        $studentId = $student->id;
+
+        $this->actingAs($admin)
+            ->from(route('students.index'))
+            ->delete(route('students.destroy', $student))
+            ->assertRedirect(route('students.index'))
+            ->assertSessionHas('success', 'Student deleted.');
+
+        $this->assertModelMissing($student);
+        $this->assertDatabaseMissing('attendances', ['student_id' => $studentId]);
+        $this->assertDatabaseMissing('student_qr_credentials', ['student_id' => $studentId]);
+        $this->assertDatabaseHas('audit_logs', [
+            'action' => 'student.deleted',
+            'subject_id' => $studentId,
+        ]);
+        Storage::disk('local')->assertMissing($photoPath);
+    }
+
+    public function test_deleting_a_student_from_the_profile_returns_to_the_directory(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $student = $this->studentFor($admin);
+
+        $this->actingAs($admin)
+            ->from(route('students.show', $student))
+            ->delete(route('students.destroy', $student))
+            ->assertRedirect(route('students.index'));
+
+        $this->assertModelMissing($student);
     }
 }

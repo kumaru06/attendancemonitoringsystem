@@ -24,6 +24,8 @@ class StudentFactory extends Factory
             'section_id' => Section::factory(),
             'school_id' => fn (array $attributes) => Section::withoutGlobalScopes()->find($attributes['section_id'])?->school_id,
             'photo_path' => null,
+            'face_descriptor' => null,
+            'face_enrolled_at' => null,
             'is_active' => true,
         ];
     }
@@ -40,6 +42,17 @@ class StudentFactory extends Factory
         return $this->state(fn (array $attributes): array => [
             'school_id' => $school->id,
             'section_id' => Section::factory()->state(['school_id' => $school->id]),
+        ]);
+    }
+
+    /**
+     * @param  list<float>|null  $descriptor
+     */
+    public function withFace(?array $descriptor = null): static
+    {
+        return $this->state(fn (array $attributes): array => [
+            'face_descriptor' => $descriptor ?? array_fill(0, 128, 0.01),
+            'face_enrolled_at' => now(),
         ]);
     }
 }

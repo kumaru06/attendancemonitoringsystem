@@ -11,6 +11,7 @@ use App\Services\AuditLogService;
 use App\Services\StudentQrService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\View\View;
 
@@ -159,5 +160,36 @@ class StudentController extends Controller
         ]);
 
         return redirect()->route('students.show', $student)->with('success', 'Student updated.');
+    }
+
+    public function destroy(Request $request, Student $student): RedirectResponse
+    {
+        $this->authorize('delete', $student);
+
+        $photoPath = $student->photo_path;
+
+        $this->auditLog->record($request->user(), 'student.deleted', $student, [
+            'student_number' => $student->student_number,
+            'name' => $student->full_name,
+        ]);
+
+        DB::transaction(function () use ($student): void {
+            $student->attendances()->delete();
+            $student->qrCredentials()->delete();
+            $student->delete();
+        });
+
+        if ($photoPath) {
+            Storage::disk('local')->delete($photoPath);
+        }
+
+        $indexPath = parse_url(route('students.index'), PHP_URL_PATH);
+        $previousPath = parse_url((string) url()->previous(), PHP_URL_PATH);
+
+        if ($previousPath === $indexPath) {
+            return redirect()->back()->with('success', 'Student deleted.');
+        }
+
+        return redirect()->route('students.index')->with('success', 'Student deleted.');
     }
 }

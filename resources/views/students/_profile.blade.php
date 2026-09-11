@@ -24,9 +24,12 @@
             @if ($student->gender)
                 <p class="mt-1 text-sm text-slate-500">{{ $student->gender->label() }}</p>
             @endif
-            <p class="mt-3">
+            <p class="mt-3 flex flex-wrap items-center justify-center gap-2">
                 <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium {{ $student->is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500' }}">
                     {{ $student->is_active ? 'Active' : 'Inactive' }}
+                </span>
+                <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium {{ $student->hasEnrolledFace() ? 'bg-indigo-50 text-indigo-700' : 'bg-amber-50 text-amber-800' }}">
+                    {{ $student->hasEnrolledFace() ? 'Face enrolled' : 'No face enrolled' }}
                 </span>
             </p>
         </div>
@@ -49,8 +52,18 @@
                 </button>
             </div>
 
+            @if ($student->hasEnrolledFace())
+                <button type="button" class="rounded-2xl bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-900 hover:bg-amber-100" data-open-modal="reset-face-modal">
+                    Reset face recognition
+                </button>
+            @endif
+
             <button type="button" class="rounded-2xl px-4 py-2.5 text-sm font-medium {{ $student->is_active ? 'bg-rose-50 text-rose-800 hover:bg-rose-100' : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100' }}" data-open-modal="status-modal">
                 {{ $student->is_active ? 'Deactivate student' : 'Activate student' }}
+            </button>
+
+            <button type="button" class="rounded-2xl px-4 py-2.5 text-sm font-medium text-rose-800 hover:bg-rose-50" data-open-modal="delete-student-modal">
+                Delete student
             </button>
         </div>
     </aside>
@@ -105,6 +118,18 @@
     </section>
 </div>
 
+@if ($student->hasEnrolledFace())
+    <x-modal id="reset-face-modal" title="Reset face recognition">
+        <p>This removes the enrolled face. The student will not be accepted in Face mode until they enroll again on the scanner.</p>
+        <form method="POST" action="{{ route('students.face.reset', $student) }}" class="mt-5 flex justify-end gap-2">
+            @csrf
+            <input type="hidden" name="confirm" value="1">
+            <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700" data-modal-close>Cancel</button>
+            <button type="submit" class="rounded-xl bg-amber-600 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-700">Reset face</button>
+        </form>
+    </x-modal>
+@endif
+
 <x-modal id="replace-qr-modal" title="Replace QR credential">
     <p>This will immediately revoke the current QR. The previous card will no longer record attendance.</p>
     <form method="POST" action="{{ route('students.qr.replace', $student) }}" class="mt-5 flex justify-end gap-2">
@@ -138,5 +163,15 @@
         <button type="submit" class="rounded-xl px-4 py-2 text-sm font-semibold text-white {{ $student->is_active ? 'bg-rose-600 hover:bg-rose-700' : 'bg-emerald-600 hover:bg-emerald-700' }}">
             {{ $student->is_active ? 'Deactivate' : 'Activate' }}
         </button>
+    </form>
+</x-modal>
+
+<x-modal id="delete-student-modal" title="Delete student">
+    <p>This permanently deletes this student, including their QR, enrolled face, photo, and attendance history.</p>
+    <form method="POST" action="{{ route('students.destroy', $student) }}" class="mt-5 flex justify-end gap-2">
+        @csrf
+        @method('DELETE')
+        <button type="button" class="rounded-xl bg-slate-100 px-4 py-2 text-sm font-medium text-slate-700" data-modal-close>Cancel</button>
+        <button type="submit" class="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700">Delete student</button>
     </form>
 </x-modal>

@@ -29,6 +29,35 @@
     width: auto;
 }
 
+.scanner-mode-button[aria-pressed='true'] {
+    background: rgb(255 255 255 / 0.16);
+    color: #fff;
+}
+
+#scanner-app[data-camera='face'] #reader {
+    visibility: hidden;
+}
+
+#scanner-app:not([data-camera='face']) #face-video {
+    display: none;
+}
+
+#scanner-app[data-camera='face'] .scanner-scanline {
+    display: none !important;
+}
+
+#scanner-app[data-mode='enroll'] #enroll-panel {
+    display: block;
+}
+
+#result-card[data-result='enrolled'] {
+    box-shadow: 0 0 0 1px rgb(16 185 129 / 0.28), 0 18px 50px -28px rgb(15 23 42 / 0.35);
+}
+
+#result-card[data-result='unrecognized'] {
+    box-shadow: 0 0 0 1px rgb(244 63 94 / 0.28), 0 18px 50px -28px rgb(15 23 42 / 0.35);
+}
+
 .scanner-preview #reader,
 .scanner-preview #reader > div {
     border: none !important;

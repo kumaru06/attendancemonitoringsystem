@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\AttendanceMethod;
 use App\Models\Attendance;
 use App\Models\Student;
 use App\Models\User;
@@ -22,6 +23,7 @@ class AttendanceFactory extends Factory
             'attendance_date' => $now->toDateString(),
             'time_in' => $now->format('H:i:s'),
             'status' => config('attendance.status_present'),
+            'method' => AttendanceMethod::Qr,
             'recorded_by' => User::factory(),
         ];
     }

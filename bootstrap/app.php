@@ -34,7 +34,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('scanner/scan') || $request->expectsJson(),
+            fn (Request $request) => $request->is('scanner/scan', 'scanner/face', 'scanner/faces') || $request->expectsJson(),
         );
     })->create();
 

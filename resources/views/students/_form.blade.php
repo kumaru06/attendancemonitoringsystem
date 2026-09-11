@@ -45,7 +45,7 @@
         <label for="{{ $idPrefix }}photo" class="mb-1 block text-xs font-medium text-slate-500">Student photo</label>
         <input id="{{ $idPrefix }}photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" data-photo-input
                class="{{ $fieldClass }} file:mr-3 file:rounded-lg file:border-0 file:bg-white file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-slate-700">
-        <p class="mt-1 text-xs text-slate-400">JPEG, PNG, or WebP. Maximum 2 MB.</p>
+        <p class="mt-1 text-xs text-slate-400">JPEG, PNG, or WebP. Maximum 2 MB. Use a clear frontal photo. Live face enrollment on the scanner is what registers attendance.</p>
         <img id="{{ $idPrefix }}photo-preview" data-photo-preview alt="Photo preview" class="mt-3 hidden h-28 w-28 rounded-2xl object-cover shadow-[0_12px_28px_rgba(15,23,42,0.08)]"
              @if ($student?->photo_path) src="{{ route('students.photo', $student) }}" style="display:block" @endif>
     </div>

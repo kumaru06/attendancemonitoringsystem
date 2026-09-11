@@ -4,6 +4,10 @@ const root = document.getElementById('scanner-app');
 
 if (root) {
     const scanUrl = root.dataset.scanUrl;
+    const faceUrl = root.dataset.faceUrl;
+    const facesUrl = root.dataset.facesUrl;
+    const enrollUrl = root.dataset.enrollUrl;
+    const modelsUrl = root.dataset.modelsUrl;
     const csrf = root.dataset.csrf;
     const cameraSelect = document.getElementById('camera-select');
     const cameraPickerButton = document.getElementById('camera-picker-button');
@@ -25,13 +29,73 @@ if (root) {
     const liveLabel = document.getElementById('scan-live-label');
     const recentList = document.getElementById('recent-list');
     const recentCount = document.getElementById('recent-count');
+    const faceVideo = document.getElementById('face-video');
+    const enrollPanel = document.getElementById('enroll-panel');
+    const enrollSearch = document.getElementById('enroll-search');
+    const enrollResults = document.getElementById('enroll-results');
+    const enrollSelected = document.getElementById('enroll-selected');
+    const enrollSelectedName = document.getElementById('enroll-selected-name');
+    const enrollSelectedMeta = document.getElementById('enroll-selected-meta');
+    const enrollClear = document.getElementById('enroll-clear');
     const recentLimit = 40;
 
     let scanner = null;
+    let faceStream = null;
+    let faceLoop = 0;
     let running = false;
     let inFlight = false;
     let lastScanAt = 0;
+    let selectedStudent = null;
+    let searchTimer = null;
+    let faceHelpers = null;
+    let lookStreak = 0;
     const cooldownMs = 1500;
+    const requiredLookFrames = 4;
+
+    const currentMode = () => root.dataset.mode || 'qr';
+    const enrollPoses = [
+        { id: 'left', label: 'Look left', arrow: '←', match: (face) => face.yaw < -0.12 },
+        { id: 'right', label: 'Look right', arrow: '→', match: (face) => face.yaw > 0.12 },
+        { id: 'up', label: 'Look up', arrow: '↑', match: (face) => face.pitch < 0.02 },
+        { id: 'down', label: 'Look down', arrow: '↓', match: (face) => face.pitch > 0.18 },
+        { id: 'center', label: 'Look at the camera', arrow: '•', match: (face) => face.lookingAtCamera },
+    ];
+    const samplesPerPose = 2;
+    const faceGuide = document.getElementById('face-guide');
+    const faceGuideLabel = document.getElementById('face-guide-label');
+    const faceGuideArrow = document.getElementById('face-guide-arrow');
+    const faceGuideStep = document.getElementById('face-guide-step');
+
+    const showFaceGuide = (pose, poseIndex, poseSamples) => {
+        faceGuide?.classList.remove('hidden');
+        if (faceGuideLabel) {
+            faceGuideLabel.textContent = pose.label;
+        }
+        if (faceGuideArrow) {
+            faceGuideArrow.textContent = pose.arrow;
+        }
+        if (faceGuideStep) {
+            faceGuideStep.textContent = `${poseIndex + 1}/${enrollPoses.length} · ${poseSamples}/${samplesPerPose}`;
+        }
+    };
+
+    const hideFaceGuide = () => {
+        faceGuide?.classList.add('hidden');
+    };
+
+    const idleMeta = () => {
+        if (currentMode() === 'enroll') {
+            return selectedStudent
+                ? 'Start the camera to register this student\'s face.'
+                : 'Search a student, or start the camera to scan their QR.';
+        }
+
+        if (currentMode() === 'face') {
+            return 'Look at the camera to check in.';
+        }
+
+        return 'Present a student QR to the camera.';
+    };
 
     const setStatus = (message) => {
         if (statusEl) {
@@ -58,16 +122,22 @@ if (root) {
         const message = payload?.message || fallbackMessage;
         const code = payload?.code || 'error';
 
-        resultName.textContent = student?.name || (code === 'invalid' ? 'Unknown QR' : 'Scan result');
+        resultName.textContent = student?.name || (code === 'invalid' ? 'Unknown QR' : code === 'unrecognized' ? 'Unknown face' : 'Scan result');
         resultMeta.textContent = student
             ? [student.student_number, student.level, student.section].filter(Boolean).join(' · ')
-            : 'Present a student QR to the camera.';
+            : idleMeta();
         resultMessage.textContent = message;
         resultTime.textContent = payload?.time_in ? `Time-in: ${payload.time_in}` : '';
 
         resultMessage.classList.remove('text-emerald-700', 'text-amber-700', 'text-rose-700', 'text-slate-600');
         resultMessage.classList.add(
-            code === 'recorded' ? 'text-emerald-700' : code === 'duplicate' ? 'text-amber-700' : 'text-rose-700',
+            ['recorded', 'enrolled'].includes(code)
+                ? 'text-emerald-700'
+                : ['duplicate', 'replace'].includes(code)
+                    ? 'text-amber-700'
+                    : code === 'idle'
+                        ? 'text-slate-600'
+                        : 'text-rose-700',
         );
 
         resultCard?.setAttribute('data-result', code);
@@ -75,8 +145,11 @@ if (root) {
         if (resultBadge) {
             const badges = {
                 recorded: ['Present', 'bg-emerald-50 text-emerald-700'],
+                enrolled: ['Face registered', 'bg-emerald-50 text-emerald-700'],
+                replace: ['Replace face', 'bg-amber-50 text-amber-800'],
                 duplicate: ['Already checked in', 'bg-amber-50 text-amber-800'],
                 invalid: ['Invalid QR', 'bg-rose-50 text-rose-700'],
+                unrecognized: ['Not recognized', 'bg-rose-50 text-rose-700'],
                 inactive: ['Inactive', 'bg-rose-50 text-rose-700'],
             };
             const badge = badges[code];
@@ -93,7 +166,7 @@ if (root) {
             }
         }
 
-        const ring = code === 'recorded' ? 'ring-emerald-100' : code === 'duplicate' ? 'ring-amber-100' : 'ring-slate-100';
+        const ring = code === 'recorded' || code === 'enrolled' ? 'ring-emerald-100' : code === 'duplicate' ? 'ring-amber-100' : 'ring-slate-100';
 
         resultPhoto.classList.remove('ring-emerald-100', 'ring-amber-100', 'ring-slate-100', 'ring-rose-100');
         resultFallback.classList.remove('ring-emerald-100', 'ring-amber-100', 'ring-slate-100', 'ring-rose-100');
@@ -192,10 +265,70 @@ if (root) {
         refreshRecentCount();
     };
 
+    const postJson = async (url, body) => {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+            body: JSON.stringify(body),
+        });
+
+        let payload = {};
+
+        try {
+            payload = await response.json();
+        } catch {
+            payload = {};
+        }
+
+        return { response, payload };
+    };
+
     const submitToken = async (token) => {
         const now = Date.now();
 
         if (inFlight || now - lastScanAt < cooldownMs) {
+            return;
+        }
+
+        if (currentMode() === 'enroll') {
+            inFlight = true;
+            lastScanAt = now;
+            setStatus('Looking up student…');
+
+            try {
+                const response = await fetch(`${facesUrl}?token=${encodeURIComponent(token)}`, {
+                    headers: {
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    credentials: 'same-origin',
+                });
+                const payload = await response.json();
+                const student = payload.students?.[0];
+
+                if (! student) {
+                    paintResult({ code: 'invalid', message: 'Invalid QR code' }, 'Invalid QR code');
+                    setStatus('Search a student, or scan a valid QR.');
+                    return;
+                }
+
+                selectStudent(student);
+                setStatus('Student selected. Hold still to register the face.');
+                await stopScanner();
+                await startFaceCamera();
+            } catch {
+                paintResult(null, 'Unable to look up that QR. Please try again.');
+                setStatus('Ready to enroll.');
+            } finally {
+                inFlight = false;
+            }
+
             return;
         }
 
@@ -204,25 +337,7 @@ if (root) {
         setStatus('Confirming attendance…');
 
         try {
-            const response = await fetch(scanUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    Accept: 'application/json',
-                    'X-CSRF-TOKEN': csrf,
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-                credentials: 'same-origin',
-                body: JSON.stringify({ token }),
-            });
-
-            let payload = {};
-
-            try {
-                payload = await response.json();
-            } catch {
-                payload = {};
-            }
+            const { response, payload } = await postJson(scanUrl, { token });
 
             if (! response.ok && ! payload.message) {
                 paintResult(null, 'Unable to confirm attendance. Please try again.');
@@ -239,6 +354,91 @@ if (root) {
         } finally {
             inFlight = false;
         }
+    };
+
+    const submitFaceMatch = async (descriptor) => {
+        const now = Date.now();
+
+        if (inFlight || now - lastScanAt < cooldownMs) {
+            return;
+        }
+
+        inFlight = true;
+        lastScanAt = now;
+        setStatus('Confirming attendance…');
+
+        try {
+            const { response, payload } = await postJson(faceUrl, { descriptor });
+
+            if (! response.ok && ! payload.message) {
+                paintResult(null, 'Unable to confirm attendance. Please try again.');
+                await stopScanner();
+                setStatus('Camera stopped. Press start scanning to try again.');
+                return;
+            }
+
+            paintResult(payload, payload.message || 'Unable to confirm attendance. Please try again.');
+            prependRecent(payload);
+            await stopScanner();
+            setStatus(
+                payload.code === 'recorded'
+                    ? 'Attendance recorded. Camera stopped.'
+                    : payload.code === 'duplicate'
+                        ? 'Already checked in. Camera stopped.'
+                        : 'Camera stopped. Press start scanning to try again.',
+            );
+        } catch {
+            paintResult(null, 'Unable to confirm attendance. Please try again.');
+            setStatus('Look directly at the camera.');
+        } finally {
+            inFlight = false;
+        }
+    };
+
+    const submitFaceEnroll = async (descriptor) => {
+        if (inFlight || ! selectedStudent) {
+            return;
+        }
+
+        inFlight = true;
+        setStatus('Saving face…');
+
+        try {
+            const { response, payload } = await postJson(enrollUrl, {
+                student_id: selectedStudent.id,
+                descriptor,
+            });
+
+            if (! response.ok && ! payload.message) {
+                paintResult(null, 'Unable to register that face. Please try again.');
+                setStatus('Hold still to register the face.');
+                return;
+            }
+
+            paintResult(payload, payload.message || 'Unable to register that face. Please try again.');
+
+            if (payload.code === 'enrolled' && payload.student) {
+                renderSelectedStudent(payload.student);
+                setStatus('Face registered. You can enroll another student.');
+                await stopScanner();
+                return;
+            }
+
+            setStatus('Hold still to register the face.');
+        } catch {
+            paintResult(null, 'Unable to register that face. Please try again.');
+            setStatus('Hold still to register the face.');
+        } finally {
+            inFlight = false;
+        }
+    };
+
+    const ensureFaceHelpers = async () => {
+        if (! faceHelpers) {
+            faceHelpers = await import('./face-scanner');
+        }
+
+        return faceHelpers;
     };
 
     const wait = (ms) => new Promise((resolve) => window.setTimeout(resolve, ms));
@@ -310,7 +510,21 @@ if (root) {
         });
     };
 
+    const stopFaceCamera = () => {
+        faceLoop += 1;
+        hideFaceGuide();
+        faceStream?.getTracks().forEach((track) => track.stop());
+        faceStream = null;
+
+        if (faceVideo) {
+            faceVideo.srcObject = null;
+        }
+    };
+
     const stopScanner = async () => {
+        stopFaceCamera();
+        delete root.dataset.camera;
+
         if (! scanner) {
             running = false;
             setScanningState(false);
@@ -384,6 +598,155 @@ if (root) {
         return 'Unable to start that camera. Click Stop, select the plugged-in webcam, then start scanning.';
     };
 
+    const startQrCamera = async () => {
+        await stopScanner();
+        await wait(400);
+
+        scanner = new Html5Qrcode('reader', { verbose: false });
+        const source = { deviceId: { exact: selectedCameraId() } };
+
+        try {
+            await scanner.start(source, cameraConfig, onDecoded, () => {});
+            running = true;
+            root.dataset.camera = 'qr';
+            setScanningState(true);
+            setStatus(currentMode() === 'enroll' ? 'Scan the student QR to select them.' : 'Hold a QR code steady in the frame.');
+        } catch (firstError) {
+            await wait(700);
+
+            try {
+                scanner = new Html5Qrcode('reader', { verbose: false });
+                await scanner.start(source, cameraConfig, onDecoded, () => {});
+                running = true;
+                root.dataset.camera = 'qr';
+                setScanningState(true);
+                setStatus(currentMode() === 'enroll' ? 'Scan the student QR to select them.' : 'Hold a QR code steady in the frame.');
+            } catch (error) {
+                await stopScanner();
+                setStatus(describeStartError(error));
+            }
+        }
+    };
+
+    const runFaceLoop = async (loopId, samples = [], poseIndex = 0, poseSamples = 0) => {
+        if (loopId !== faceLoop || ! running) {
+            hideFaceGuide();
+            return;
+        }
+
+        if (currentMode() === 'enroll' && selectedStudent) {
+            showFaceGuide(enrollPoses[poseIndex], poseIndex, poseSamples);
+        } else {
+            hideFaceGuide();
+        }
+
+        if (faceVideo && faceVideo.readyState >= 2 && ! inFlight && faceHelpers) {
+            try {
+                if (currentMode() === 'face') {
+                    const face = await faceHelpers.detectFace(faceVideo, { scoreThreshold: 0.4 });
+
+                    if (face?.lookingAtCamera) {
+                        lookStreak += 1;
+                        setStatus(`Look at the camera… ${lookStreak}/${requiredLookFrames}`);
+
+                        if (lookStreak >= requiredLookFrames) {
+                            lookStreak = 0;
+                            await submitFaceMatch(face.descriptor);
+                        }
+                    } else {
+                        lookStreak = 0;
+                        setStatus(face ? 'Look directly at the camera.' : 'No face in the frame.');
+                    }
+                }
+
+                if (currentMode() === 'enroll' && selectedStudent) {
+                    const pose = enrollPoses[poseIndex];
+                    const face = await faceHelpers.detectFace(faceVideo, {
+                        inputSize: pose.id === 'center' ? 416 : 320,
+                        scoreThreshold: 0.4,
+                    });
+
+                    if (face && pose.match(face)) {
+                        samples.push(face.descriptor);
+                        poseSamples += 1;
+                        setStatus(`${pose.label}… ${poseSamples}/${samplesPerPose}`);
+                        showFaceGuide(pose, poseIndex, poseSamples);
+
+                        if (poseSamples >= samplesPerPose) {
+                            poseIndex += 1;
+                            poseSamples = 0;
+
+                            if (poseIndex >= enrollPoses.length) {
+                                hideFaceGuide();
+                                const averaged = faceHelpers.averageDescriptors(samples);
+
+                                if (averaged) {
+                                    await submitFaceEnroll(averaged);
+                                }
+
+                                return;
+                            }
+
+                            setStatus(enrollPoses[poseIndex].label);
+                        }
+                    } else if (! face) {
+                        setStatus(`${pose.label}. Keep your face in the frame.`);
+                    } else if (pose.id === 'center') {
+                        setStatus('Look straight at the camera and hold still.');
+                    } else {
+                        setStatus(pose.label);
+                    }
+                }
+            } catch {
+                // Keep the camera loop alive if a single frame fails.
+            }
+        }
+
+        window.setTimeout(() => {
+            runFaceLoop(loopId, samples, poseIndex, poseSamples);
+        }, currentMode() === 'enroll' ? 220 : 320);
+    };
+
+    const startFaceCamera = async () => {
+        await stopScanner();
+        await wait(400);
+
+        const cameraId = selectedCameraId();
+
+        try {
+            setStatus('Loading face models…');
+            const helpers = await ensureFaceHelpers();
+            await helpers.loadFaceModels(modelsUrl);
+
+            faceStream = await navigator.mediaDevices.getUserMedia({
+                audio: false,
+                video: {
+                    deviceId: { exact: cameraId },
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+            });
+
+            if (faceVideo) {
+                faceVideo.srcObject = faceStream;
+                await faceVideo.play();
+            }
+
+            running = true;
+            lookStreak = 0;
+            root.dataset.camera = 'face';
+            setScanningState(true);
+            setStatus(currentMode() === 'enroll' ? enrollPoses[0].label : 'Look directly at the camera.');
+            if (currentMode() === 'enroll') {
+                showFaceGuide(enrollPoses[0], 0, 0);
+            }
+            runFaceLoop(faceLoop);
+        } catch (error) {
+            await stopScanner();
+            setStatus(describeStartError(error));
+        }
+    };
+
     const startScanner = async () => {
         if (running) {
             return;
@@ -400,38 +763,27 @@ if (root) {
             await loadCameras();
         }
 
-        const cameraId = selectedCameraId();
-
-        if (! cameraId) {
+        if (! selectedCameraId()) {
             setStatus('Select a camera first.');
             return;
         }
 
-        await stopScanner();
-        await wait(400);
-
-        scanner = new Html5Qrcode('reader', { verbose: false });
-        const source = { deviceId: { exact: cameraId } };
-
-        try {
-            await scanner.start(source, cameraConfig, onDecoded, () => {});
-            running = true;
-            setScanningState(true);
-            setStatus('Hold a QR code steady in the frame.');
-        } catch (firstError) {
-            await wait(700);
-
-            try {
-                scanner = new Html5Qrcode('reader', { verbose: false });
-                await scanner.start(source, cameraConfig, onDecoded, () => {});
-                running = true;
-                setScanningState(true);
-                setStatus('Hold a QR code steady in the frame.');
-            } catch (error) {
-                await stopScanner();
-                setStatus(describeStartError(error));
-            }
+        if (currentMode() === 'face') {
+            await startFaceCamera();
+            return;
         }
+
+        if (currentMode() === 'enroll') {
+            if (selectedStudent) {
+                await startFaceCamera();
+                return;
+            }
+
+            await startQrCamera();
+            return;
+        }
+
+        await startQrCamera();
     };
 
     const loadCameras = async () => {
@@ -479,6 +831,197 @@ if (root) {
         }
     };
 
+    const enrollPrompt = (student) => ({
+        code: student.face_enrolled ? 'replace' : 'idle',
+        student,
+        message: student.face_enrolled
+            ? 'This student already has a face. Capture again to replace it.'
+            : 'Follow the on-screen guide to register this face.',
+    });
+
+    const renderSelectedStudent = (student) => {
+        selectedStudent = student;
+        enrollSelected?.classList.remove('hidden');
+        enrollResults?.classList.add('hidden');
+
+        if (enrollSelectedName) {
+            enrollSelectedName.textContent = student.name;
+        }
+
+        if (enrollSelectedMeta) {
+            enrollSelectedMeta.textContent = [student.student_number, student.level, student.section, student.face_enrolled ? 'Face enrolled' : 'No face yet']
+                .filter(Boolean)
+                .join(' · ');
+        }
+
+        if (enrollSearch) {
+            enrollSearch.value = student.name;
+        }
+    };
+
+    const lookupStudent = async (studentId) => {
+        try {
+            const response = await fetch(`${facesUrl}?student_id=${encodeURIComponent(studentId)}`, {
+                headers: {
+                    Accept: 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
+                credentials: 'same-origin',
+            });
+
+            if (! response.ok) {
+                return null;
+            }
+
+            const payload = await response.json();
+
+            return payload.students?.[0] ?? null;
+        } catch {
+            return null;
+        }
+    };
+
+    const selectStudent = async (student) => {
+        renderSelectedStudent(student);
+        paintResult(enrollPrompt(student));
+
+        if (currentMode() === 'enroll' && root.dataset.camera === 'qr') {
+            startFaceCamera();
+        }
+
+        const fresh = await lookupStudent(student.id);
+
+        if (! fresh || selectedStudent?.id !== fresh.id) {
+            return;
+        }
+
+        renderSelectedStudent(fresh);
+        paintResult(enrollPrompt(fresh));
+    };
+
+    const refreshSelectedStudent = async () => {
+        if (! selectedStudent) {
+            return;
+        }
+
+        const fresh = await lookupStudent(selectedStudent.id);
+
+        if (! fresh || selectedStudent.id !== fresh.id) {
+            return;
+        }
+
+        renderSelectedStudent(fresh);
+
+        if (currentMode() === 'enroll' && ! running) {
+            paintResult(enrollPrompt(fresh));
+        }
+    };
+
+    const clearSelectedStudent = () => {
+        selectedStudent = null;
+        enrollSelected?.classList.add('hidden');
+
+        if (enrollSearch) {
+            enrollSearch.value = '';
+        }
+
+        paintResult({ code: 'idle', message: '' }, '');
+        resultName.textContent = 'Waiting for a scan';
+        resultMeta.textContent = idleMeta();
+        resultMessage.textContent = '';
+    };
+
+    const renderSearchResults = (students) => {
+        if (! enrollResults) {
+            return;
+        }
+
+        enrollResults.innerHTML = '';
+
+        if (! students.length) {
+            enrollResults.classList.remove('hidden');
+            const empty = document.createElement('li');
+            empty.className = 'px-3 py-2 text-sm text-slate-500';
+            empty.textContent = 'No matching students.';
+            enrollResults.append(empty);
+            return;
+        }
+
+        students.forEach((student) => {
+            const item = document.createElement('li');
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'flex w-full flex-col px-3 py-2 text-left hover:bg-slate-50';
+            button.innerHTML = `<span class="text-sm font-medium text-slate-900"></span><span class="text-xs text-slate-500"></span>`;
+            button.querySelector('span').textContent = student.name;
+            button.querySelectorAll('span')[1].textContent = [student.student_number, student.level, student.section, student.face_enrolled ? 'Enrolled' : '']
+                .filter(Boolean)
+                .join(' · ');
+            button.addEventListener('click', () => {
+                selectStudent(student);
+            });
+            item.append(button);
+            enrollResults.append(item);
+        });
+
+        enrollResults.classList.remove('hidden');
+    };
+
+    const searchStudents = async (query) => {
+        const response = await fetch(`${facesUrl}?q=${encodeURIComponent(query)}`, {
+            headers: {
+                Accept: 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            credentials: 'same-origin',
+        });
+
+        if (! response.ok) {
+            return;
+        }
+
+        const payload = await response.json();
+        renderSearchResults(payload.students || []);
+    };
+
+    const setMode = async (mode) => {
+        if (currentMode() === mode && ! running) {
+            root.dataset.mode = mode;
+            return;
+        }
+
+        await stopScanner();
+        root.dataset.mode = mode;
+
+        document.querySelectorAll('[data-scanner-mode]').forEach((button) => {
+            const active = button.dataset.scannerMode === mode;
+            button.setAttribute('aria-pressed', active ? 'true' : 'false');
+            button.classList.toggle('text-white', active);
+            button.classList.toggle('text-slate-300', ! active);
+        });
+
+        enrollPanel?.classList.toggle('hidden', mode !== 'enroll');
+
+        if (mode !== 'enroll') {
+            enrollResults?.classList.add('hidden');
+        }
+
+        resultName.textContent = 'Waiting for a scan';
+        resultMeta.textContent = idleMeta();
+        resultMessage.textContent = '';
+        setStatus(mode === 'enroll'
+            ? 'Search a student, or start the camera to scan their QR.'
+            : mode === 'face'
+                ? 'Camera ready. Press start scanning to recognize faces.'
+                : 'Camera ready. Press start scanning.');
+
+        if (mode === 'face' || mode === 'enroll') {
+            ensureFaceHelpers()
+                .then((helpers) => helpers.loadFaceModels(modelsUrl))
+                .catch(() => {});
+        }
+    };
+
     startButton?.addEventListener('click', () => {
         startScanner();
     });
@@ -517,6 +1060,31 @@ if (root) {
         }
     });
 
+    document.querySelectorAll('[data-scanner-mode]').forEach((button) => {
+        button.addEventListener('click', () => {
+            setMode(button.dataset.scannerMode);
+        });
+    });
+
+    enrollSearch?.addEventListener('input', () => {
+        window.clearTimeout(searchTimer);
+        const query = enrollSearch.value.trim();
+
+        if (query.length < 1) {
+            enrollResults?.classList.add('hidden');
+            return;
+        }
+
+        searchTimer = window.setTimeout(() => {
+            searchStudents(query);
+        }, 280);
+    });
+
+    enrollClear?.addEventListener('click', () => {
+        clearSelectedStudent();
+        enrollSearch?.focus();
+    });
+
     syncCameraPicker();
 
     window.addEventListener('pagehide', () => {
@@ -526,7 +1094,10 @@ if (root) {
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             stopScanner();
+            return;
         }
+
+        refreshSelectedStudent();
     });
 
     loadCameras();

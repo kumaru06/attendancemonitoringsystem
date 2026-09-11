@@ -294,6 +294,7 @@ if (studentDirectoryHost) {
 
             if (next && current) {
                 current.replaceWith(next);
+                bindModalTriggers(next);
             }
 
             if (push) {

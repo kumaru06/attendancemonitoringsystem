@@ -24,7 +24,16 @@ class Student extends Model
         return [
             'is_active' => 'boolean',
             'gender' => StudentGender::class,
+            'face_descriptor' => 'array',
+            'face_enrolled_at' => 'datetime',
         ];
+    }
+
+    public function hasEnrolledFace(): bool
+    {
+        return is_array($this->face_descriptor)
+            && $this->face_descriptor !== []
+            && $this->face_enrolled_at !== null;
     }
 
     protected function fullName(): Attribute

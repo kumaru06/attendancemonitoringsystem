@@ -26,12 +26,18 @@ class AuthorizationTest extends TestCase
         $this->actingAs($scanner)->get(route('attendances.sf2'))->assertForbidden();
         $this->actingAs($scanner)->get(route('users.index'))->assertForbidden();
         $this->actingAs($scanner)->delete(route('users.destroy', $scanner))->assertForbidden();
+        $this->actingAs($scanner)->delete(route('students.destroy', $student))->assertForbidden();
     }
 
     public function test_guest_cannot_open_the_scanner(): void
     {
         $this->get(route('scanner.index'))->assertRedirect(route('login'));
         $this->postJson(route('scanner.scan'), ['token' => 'abc'])->assertUnauthorized();
+        $this->getJson(route('scanner.faces', ['q' => 'Ana']))->assertUnauthorized();
+        $this->postJson(route('scanner.faces.enroll'), ['student_id' => 1, 'descriptor' => array_fill(0, 128, 0.1)])->assertUnauthorized();
+        $this->postJson(route('scanner.face'), ['descriptor' => array_fill(0, 128, 0.1)])->assertUnauthorized();
+        $this->post(route('students.face.reset', 1), ['confirm' => '1'])->assertRedirect(route('login'));
+        $this->delete(route('students.destroy', 1))->assertRedirect(route('login'));
     }
 
     public function test_policies_allow_scanners_to_scan_but_not_manage_students(): void
@@ -43,14 +49,20 @@ class AuthorizationTest extends TestCase
         $this->assertTrue($admin->can('viewAny', Student::class));
         $this->assertTrue($admin->can('create', Student::class));
         $this->assertTrue($admin->can('manageQr', $student));
+        $this->assertTrue($admin->can('resetFace', $student));
+        $this->assertTrue($admin->can('delete', $student));
         $this->assertTrue($admin->can('export', Attendance::class));
 
         $this->assertFalse($scanner->can('viewAny', Student::class));
         $this->assertFalse($scanner->can('create', Student::class));
         $this->assertFalse($scanner->can('manageQr', $student));
+        $this->assertFalse($scanner->can('resetFace', $student));
+        $this->assertFalse($scanner->can('delete', $student));
         $this->assertFalse($scanner->can('export', Attendance::class));
         $this->assertTrue($scanner->can('scan', Attendance::class));
         $this->assertTrue($scanner->can('viewPhoto', $student));
+        $this->assertTrue($scanner->can('enrollFace', $student));
+        $this->assertTrue($admin->can('enrollFace', $student));
     }
 
     public function test_administrator_can_open_admin_pages(): void
@@ -111,6 +123,7 @@ class AuthorizationTest extends TestCase
 
         $this->actingAs($adminA)->get(route('students.show', $studentB))->assertNotFound();
         $this->actingAs($adminA)->get(route('students.edit', $studentB))->assertNotFound();
+        $this->actingAs($adminA)->delete(route('students.destroy', $studentB))->assertNotFound();
         $this->actingAs($adminA)
             ->put(route('sections.update', $sectionB), [
                 'name' => 'Hijacked',
@@ -128,5 +141,8 @@ class AuthorizationTest extends TestCase
         $this->assertFalse($adminA->can('view', $studentB));
         $this->assertFalse($adminA->can('update', $studentB));
         $this->assertFalse($adminA->can('manageQr', $studentB));
+        $this->assertFalse($adminA->can('enrollFace', $studentB));
+        $this->assertFalse($adminA->can('resetFace', $studentB));
+        $this->assertFalse($adminA->can('delete', $studentB));
     }
 }
