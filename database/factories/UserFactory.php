@@ -20,7 +20,7 @@ class UserFactory extends Factory
     {
         return [
             'name' => fake()->name(),
-            'username' => fake()->unique()->userName(),
+            'username' => fake()->unique()->bothify('user_########'),
             'password' => static::$password ??= Hash::make('password'),
             'role' => UserRole::Admin,
             'school_id' => School::factory(),
